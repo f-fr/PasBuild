@@ -384,8 +384,9 @@ end;
 
 function TTestCommand.Execute: Integer;
 var
-  OutputDir, TestExecutable: string;
+  OutputDir, TestExecutable, TestExecutableName: string;
   RunCommand: string;
+  OriginalDir: string;
 begin
   Result := 0;
 
@@ -393,6 +394,7 @@ begin
 
   // Build path to test executable
   OutputDir := TUtils.NormalizePath(Config.BuildConfig.OutputDirectory);
+  TestExecutableName := '.' + DirectorySeparator + 'TestRunner' + TUtils.GetPlatformExecutableSuffix;
   TestExecutable := OutputDir + DirectorySeparator + 'TestRunner' + TUtils.GetPlatformExecutableSuffix;
 
   // Check if test executable exists
@@ -409,20 +411,35 @@ begin
   TUtils.ExecuteProcess('chmod +x ' + TestExecutable, False);
   {$ENDIF}
 
-  // Build test runner command with framework options
-  RunCommand := BuildTestRunnerCommand(TestExecutable);
+  // Change to output directory so test fixtures are found via relative paths
+  OriginalDir := GetCurrentDir;
+  try
+    ChDir(OutputDir);
+  except
+    TUtils.LogError('Failed to change to output directory: ' + OutputDir);
+    Result := 1;
+    Exit;
+  end;
 
-  TUtils.LogInfo('Execute command: ' + RunCommand);
-  WriteLn;
+  try
+    // Build test runner command with framework options (use relative path from output dir)
+    RunCommand := BuildTestRunnerCommand(TestExecutableName);
 
-  // Execute the test runner
-  Result := TUtils.ExecuteProcess(RunCommand, True);
+    TUtils.LogInfo('Execute command: ' + RunCommand);
+    WriteLn;
 
-  WriteLn;
-  if Result = 0 then
-    TUtils.LogInfo('All tests passed')
-  else
-    TUtils.LogError('Tests failed with exit code: ' + IntToStr(Result));
+    // Execute the test runner
+    Result := TUtils.ExecuteProcess(RunCommand, True);
+
+    WriteLn;
+    if Result = 0 then
+      TUtils.LogInfo('All tests passed')
+    else
+      TUtils.LogError('Tests failed with exit code: ' + IntToStr(Result));
+  finally
+    // Restore original directory
+    ChDir(OriginalDir);
+  end;
 end;
 
 end.
