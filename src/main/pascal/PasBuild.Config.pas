@@ -528,7 +528,7 @@ begin
       begin
         // Rule: Library forbids child modules (cannot be an aggregator)
         if AConfig.Modules.Count > 0 then
-          raise EProjectConfigError.Create('Library module cannot have child <modules> (use <moduleDependencies> for dependencies)');
+          raise EProjectConfigError.Create('Library cannot have child <modules> (only aggregator projects can list modules)');
 
         // Module dependencies are allowed for libraries (optional)
       end;
@@ -537,7 +537,7 @@ begin
       begin
         // Rule: Application forbids child modules (cannot be an aggregator)
         if AConfig.Modules.Count > 0 then
-          raise EProjectConfigError.Create('Application module cannot have child <modules> (use <moduleDependencies> for dependencies)');
+          raise EProjectConfigError.Create('Application cannot have child <modules> (only aggregator projects can list modules)');
 
         // Module dependencies are allowed for applications (optional)
       end;
