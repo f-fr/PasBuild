@@ -383,7 +383,7 @@ begin
   Result := '<?xml version="1.0" encoding="UTF-8"?>' + LineEnding +
             '<project>' + LineEnding +
             '  <name>' + AName + '</name>' + LineEnding +
-            '  <version>' + AVersion + '</version>' + LineEnding +
+            '  <!-- version inherited from aggregator -->' + LineEnding +
             '  <author>' + AAuthor + '</author>' + LineEnding +
             '  <license>' + ALicense + '</license>' + LineEnding +
             '' + LineEnding +
