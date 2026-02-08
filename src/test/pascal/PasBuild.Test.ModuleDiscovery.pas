@@ -17,6 +17,7 @@ interface
 uses
   Classes, SysUtils, fpcunit, testregistry,
   PasBuild.Types,
+  PasBuild.ModuleDiscovery,
   PasBuild.CLI;
 
 type
@@ -82,6 +83,16 @@ type
     procedure TestReactorBuildWithMultipleDependencies;
     procedure TestReactorBuildSkipsAggregator;
     procedure TestReactorBuildResolvesArtifacts;
+  end;
+
+  { Tests for version inheritance in multi-module projects }
+  TTestVersionInheritance = class(TTestCase)
+  private
+    function GetFixturePath(const AFileName: string): string;
+  published
+    procedure TestVersionInheritedFromAggregator;
+    procedure TestVersionMatchesAggregator;
+    procedure TestVersionMismatchRaisesError;
   end;
 
   { Tests for CLI module selection }
@@ -1076,6 +1087,81 @@ begin
   end;
 end;
 
+{ TTestVersionInheritance }
+
+function TTestVersionInheritance.GetFixturePath(const AFileName: string): string;
+begin
+  Result := 'fixtures/multi-module/' + AFileName;
+end;
+
+procedure TTestVersionInheritance.TestVersionInheritedFromAggregator;
+var
+  Registry: TModuleRegistry;
+  Module: TModuleInfo;
+begin
+  { Child module without <version> should inherit aggregator's version }
+  Registry := TModuleDiscoverer.DiscoverModules(
+    GetFixturePath('version-inherit-empty/project.xml'));
+  try
+    AssertEquals('Registry should have 1 module', 1, Registry.Modules.Count);
+    Module := TModuleInfo(Registry.Modules[0]);
+    AssertEquals('Module name should match', 'child-lib', Module.Name);
+    AssertEquals('Module version should be inherited from aggregator',
+      '2.0.0', Module.Config.Version);
+  finally
+    Registry.Free;
+  end;
+end;
+
+procedure TTestVersionInheritance.TestVersionMatchesAggregator;
+var
+  Registry: TModuleRegistry;
+  Module: TModuleInfo;
+begin
+  { Child module with matching <version> should be accepted }
+  Registry := TModuleDiscoverer.DiscoverModules(
+    GetFixturePath('version-inherit-match/project.xml'));
+  try
+    AssertEquals('Registry should have 1 module', 1, Registry.Modules.Count);
+    Module := TModuleInfo(Registry.Modules[0]);
+    AssertEquals('Module version should match aggregator',
+      '2.0.0', Module.Config.Version);
+  finally
+    Registry.Free;
+  end;
+end;
+
+procedure TTestVersionInheritance.TestVersionMismatchRaisesError;
+var
+  Registry: TModuleRegistry;
+  ExceptionRaised: Boolean;
+begin
+  { Child module with different <version> should raise error }
+  ExceptionRaised := False;
+  Registry := nil;
+  try
+    Registry := TModuleDiscoverer.DiscoverModules(
+      GetFixturePath('version-inherit-mismatch/project.xml'));
+  except
+    on E: Exception do
+    begin
+      ExceptionRaised := True;
+      AssertTrue('Error should mention version mismatch',
+        Pos('does not match', E.Message) > 0);
+      AssertTrue('Error should mention module name',
+        Pos('child-lib', E.Message) > 0);
+      AssertTrue('Error should mention module version',
+        Pos('0.9.0', E.Message) > 0);
+      AssertTrue('Error should mention aggregator version',
+        Pos('2.0.0', E.Message) > 0);
+    end;
+  end;
+
+  AssertTrue('Version mismatch should raise exception', ExceptionRaised);
+  if Assigned(Registry) then
+    Registry.Free;
+end;
+
 { TTestCLIModuleSelection }
 
 procedure TTestCLIModuleSelection.TestCommandLineArgsHasModuleField;
@@ -1148,6 +1234,7 @@ initialization
   RegisterTest(TTestBuildOrder);
   RegisterTest(TTestArtifactResolution);
   RegisterTest(TTestReactorBuild);
+  RegisterTest(TTestVersionInheritance);
   RegisterTest(TTestCLIModuleSelection);
 
 end.

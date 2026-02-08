@@ -38,7 +38,8 @@ type
     class procedure ParseProfiles(AProfilesNode: TDOMNode; AConfig: TProjectConfig);
     class procedure ValidatePackagingRules(AConfig: TProjectConfig);
   public
-    class function LoadProjectXML(const AFilePath: string): TProjectConfig;
+    class function LoadProjectXML(const AFilePath: string;
+      AAllowEmptyVersion: Boolean = False): TProjectConfig;
     class function ValidateConfig(AConfig: TProjectConfig): Boolean;
     class function ValidateSemanticVersion(const AVersion: string): Boolean;
   end;
@@ -351,7 +352,8 @@ begin
   end;
 end;
 
-class function TConfigLoader.LoadProjectXML(const AFilePath: string): TProjectConfig;
+class function TConfigLoader.LoadProjectXML(const AFilePath: string;
+  AAllowEmptyVersion: Boolean = False): TProjectConfig;
 var
   Doc: TXMLDocument;
   RootNode, BuildNode, TestNode, ProfilesNode: TDOMNode;
@@ -385,7 +387,7 @@ begin
         raise EProjectConfigError.Create('Missing required field: <name>');
 
       Result.Version := GetNodeText(RootNode, 'version');
-      if Result.Version = '' then
+      if (Result.Version = '') and (not AAllowEmptyVersion) then
         raise EProjectConfigError.Create('Missing required field: <version>');
 
       // Parse optional metadata (defaults already set in TProjectConfig.Create)
@@ -459,9 +461,12 @@ begin
   if not Assigned(AConfig) then
     raise EProjectConfigError.Create('Config object is nil');
 
-  // Validate semantic version
-  if not ValidateSemanticVersion(AConfig.Version) then
-    raise EProjectConfigError.CreateFmt('Invalid version format: %s (expected: MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-PRERELEASE)', [AConfig.Version]);
+  // Validate semantic version (skip if empty - version may be inherited from aggregator)
+  if AConfig.Version <> '' then
+  begin
+    if not ValidateSemanticVersion(AConfig.Version) then
+      raise EProjectConfigError.CreateFmt('Invalid version format: %s (expected: MAJOR.MINOR.PATCH or MAJOR.MINOR.PATCH-PRERELEASE)', [AConfig.Version]);
+  end;
 
   // Validate name contains only valid characters
   RegEx := TRegExpr.Create('^[a-zA-Z0-9_-]+$');

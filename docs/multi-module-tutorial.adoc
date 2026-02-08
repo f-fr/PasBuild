@@ -14,6 +14,7 @@ PasBuild supports Maven-style multi-module projects with:
 * Aggregator projects (packaging=pom) that coordinate multiple modules
 * Library modules that provide reusable components
 * Application modules that depend on libraries
+* Version inheritance from aggregator to child modules
 * Automatic dependency resolution between modules
 * Topological build ordering with cycle detection
 
@@ -69,9 +70,11 @@ Create the root `project.xml` with packaging type "pom":
 ----
 
 Key points:
+
 - `packaging=pom` marks this as an aggregator
 - Aggregators cannot have `mainSource` (they don't compile to anything)
 - The `<modules>` list contains paths to child module directories
+- The `<version>` is defined here and inherited by all child modules
 
 == Step 2: Create Library Modules
 
@@ -84,7 +87,7 @@ Create each library module with `packaging=library`:
 <?xml version="1.0" encoding="UTF-8"?>
 <project>
   <name>core</name>
-  <version>1.0.0</version>
+  <!-- version inherited from aggregator -->
   <author>Your Name</author>
   <license>BSD-3-Clause</license>
 
@@ -102,7 +105,7 @@ Create each library module with `packaging=library`:
 <?xml version="1.0" encoding="UTF-8"?>
 <project>
   <name>ui</name>
-  <version>1.0.0</version>
+  <!-- version inherited from aggregator -->
   <author>Your Name</author>
   <license>BSD-3-Clause</license>
 
@@ -118,7 +121,9 @@ Create each library module with `packaging=library`:
 ----
 
 Key points:
+
 - Libraries use `packaging=library`
+- `<version>` is omitted -- it is inherited from the aggregator
 - Specify dependencies in `<moduleDependencies>` section (relative paths)
 - Libraries produce compiled units in `target/units/`
 
@@ -133,7 +138,7 @@ Create application modules with `packaging=application` (default):
 <?xml version="1.0" encoding="UTF-8"?>
 <project>
   <name>demo</name>
-  <version>1.0.0</version>
+  <!-- version inherited from aggregator -->
   <author>Your Name</author>
   <license>BSD-3-Clause</license>
 
@@ -150,9 +155,11 @@ Create application modules with `packaging=application` (default):
 ----
 
 Key points:
+
 - Applications use `packaging=application` (default)
 - Applications require `mainSource`
-- Dependencies are automatically resolved (UI → core)
+- `<version>` is inherited from the aggregator, same as libraries
+- Dependencies are automatically resolved (UI -> core)
 
 == Building Multi-Module Projects
 
@@ -345,6 +352,7 @@ Output shows each module and its dependencies:
 ----
 
 The verbose flag helps you:
+
 - Visualize module relationships
 - Verify correct dependency setup
 - Understand the build order
@@ -379,6 +387,7 @@ pasbuild test -v -f myproject.xml
 === Module Naming Conventions
 
 Module names can include:
+
 - Lowercase letters: `core`, `ui`
 - Numbers: `lib1`, `module2`
 - Hyphens: `core-utils`, `ui-widgets`

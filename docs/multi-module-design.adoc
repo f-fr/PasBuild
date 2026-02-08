@@ -35,7 +35,7 @@ Primary scenarios for multi-module builds:
 
 * **Simplicity First**: Multi-module is opt-in, not mandatory
 * **No External Dependencies**: Module references only within project tree
-* **No Version Resolution**: All modules use parent version
+* **Version Inheritance**: Child modules inherit version from aggregator; `<version>` is optional in child modules
 * **Path-Based Linking**: Use Free Pascal's `-Fu` mechanism, not artifact repositories
 * **Fail Fast**: Invalid module references fail at parse time, not compile time
 * **Maven Compatibility**: Follow Maven multi-module patterns where applicable
@@ -341,7 +341,7 @@ This disables auto-generation and uses your custom program file instead.
 <?xml version="1.0" encoding="UTF-8"?>
 <project>
   <name>FrameworkCore</name>
-  <version>2.0.0</version>
+  <!-- version inherited from aggregator -->
 
   <build>
     <packaging>library</packaging>
@@ -352,7 +352,7 @@ This disables auto-generation and uses your custom program file instead.
 </project>
 ----
 
-**Note:** Library projects do not require `<mainSource>`. PasBuild automatically generates a bootstrap program that discovers and compiles all units in the configured unit paths.
+**Note:** Library projects do not require `<mainSource>`. PasBuild automatically generates a bootstrap program that discovers and compiles all units in the configured unit paths. The `<version>` element is optional in child modules -- it is inherited from the aggregator.
 
 ==== Application Module with Dependencies
 
@@ -361,7 +361,7 @@ This disables auto-generation and uses your custom program file instead.
 <?xml version="1.0" encoding="UTF-8"?>
 <project>
   <name>BasicDemo</name>
-  <version>2.0.0</version>
+  <!-- version inherited from aggregator -->
 
   <build>
     <packaging>application</packaging>
@@ -1729,17 +1729,17 @@ cross-platform-app/
 
 **Question:** Should child modules be required to have same version as parent aggregator?
 
-**Options:**
+**Resolution: Version Inheritance (implemented)**
 
-A. **Strict Enforcement** - Child `<version>` must match parent
-   - Pros: Prevents version drift, simpler release management
-   - Cons: Requires updating all module versions together
+Child modules inherit their version from the aggregator. The `<version>` element is optional in child module `project.xml` files:
 
-B. **Loose Enforcement** - Child `<version>` can differ
-   - Pros: Independent module versioning
-   - Cons: Confusing for users, complicates dependency management
+* If `<version>` is omitted, the aggregator's version is inherited automatically
+* If `<version>` is present and matches the aggregator, it is accepted (backward compatible)
+* If `<version>` is present but differs from the aggregator, a build error is raised with guidance to either remove the element or correct it
 
-**Recommendation:** Start with Option A (strict) for MVP. Can relax later if needed.
+This follows the Maven model where child POMs inherit `<version>` from their parent, adapted for PasBuild's simpler structure (no `<parent>` element needed since the aggregator already knows its children via `<modules>`).
+
+The recommended practice is to define `<version>` only in the root aggregator `project.xml` and omit it from all child modules.
 
 ==== Question 2: Module Name vs Directory Name
 

@@ -57,6 +57,15 @@ type
     procedure TestValidateApplicationValid;
   end;
 
+  { Test AAllowEmptyVersion parameter for version inheritance support }
+  TTestVersionLoading = class(TTestCase)
+  private
+    function GetFixturePath(const AFileName: string): string;
+  published
+    procedure TestParseModuleWithoutVersion;
+    procedure TestParseModuleWithoutVersionStandaloneFails;
+  end;
+
 implementation
 
 { TTestParsePackaging }
@@ -329,9 +338,55 @@ begin
   end;
 end;
 
+{ TTestVersionLoading }
+
+function TTestVersionLoading.GetFixturePath(const AFileName: string): string;
+begin
+  Result := 'fixtures/multi-module/' + AFileName;
+end;
+
+procedure TTestVersionLoading.TestParseModuleWithoutVersion;
+var
+  Config: TProjectConfig;
+begin
+  { Loading with AAllowEmptyVersion=True should accept missing <version> }
+  Config := TConfigLoader.LoadProjectXML(GetFixturePath('module-no-version.xml'), True);
+  try
+    AssertEquals('Version should be empty when not specified', '', Config.Version);
+    AssertEquals('Name should be parsed', 'TestModuleNoVersion', Config.Name);
+    AssertEquals('Packaging should be library', Ord(ptLibrary), Ord(Config.BuildConfig.ProjectType));
+  finally
+    Config.Free;
+  end;
+end;
+
+procedure TTestVersionLoading.TestParseModuleWithoutVersionStandaloneFails;
+var
+  Config: TProjectConfig;
+  ExceptionRaised: Boolean;
+begin
+  { Loading without AAllowEmptyVersion flag should still require <version> }
+  ExceptionRaised := False;
+  Config := nil;
+  try
+    Config := TConfigLoader.LoadProjectXML(GetFixturePath('module-no-version.xml'));
+  except
+    on E: EProjectConfigError do
+    begin
+      ExceptionRaised := True;
+      AssertTrue('Error should mention version', Pos('version', LowerCase(E.Message)) > 0);
+    end;
+  end;
+
+  AssertTrue('Missing version should raise exception for standalone load', ExceptionRaised);
+  if Assigned(Config) then
+    Config.Free;
+end;
+
 initialization
   RegisterTest(TTestParsePackaging);
   RegisterTest(TTestParseModules);
   RegisterTest(TTestValidatePackagingRules);
+  RegisterTest(TTestVersionLoading);
 
 end.

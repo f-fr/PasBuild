@@ -106,8 +106,17 @@ begin
         if not FileExists(ModuleProjectXml) then
           raise Exception.CreateFmt('Module project.xml not found: %s', [ModuleProjectXml]);
 
-        { Load module configuration }
-        ModuleConfig := TConfigLoader.LoadProjectXML(ModuleProjectXml);
+        { Load module configuration (allow empty version for inheritance) }
+        ModuleConfig := TConfigLoader.LoadProjectXML(ModuleProjectXml, True);
+
+        { Version inheritance: if module has no version, inherit from aggregator }
+        if ModuleConfig.Version = '' then
+          ModuleConfig.Version := AggregatorConfig.Version
+        else if ModuleConfig.Version <> AggregatorConfig.Version then
+          raise Exception.CreateFmt(
+            'Module "%s" version "%s" does not match aggregator version "%s". ' +
+            'Remove <version> from module to inherit from aggregator, or set it to "%s".',
+            [ModuleConfig.Name, ModuleConfig.Version, AggregatorConfig.Version, AggregatorConfig.Version]);
 
         { Create module info }
         ModuleInfo := TModuleInfo.Create;
