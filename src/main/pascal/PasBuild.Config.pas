@@ -59,9 +59,9 @@ begin
   if not Assigned(AParent) then
     Exit;
 
-  Node := AParent.FindNode(ATagName);
+  Node := AParent.FindNode(UnicodeString(ATagName));
   if Assigned(Node) and Assigned(Node.FirstChild) then
-    Result := Trim(Node.TextContent);
+    Result := Trim(string(Node.TextContent));
 end;
 
 class procedure TConfigLoader.ParseDefines(AParent: TDOMNode; ADefines: TStringList);
@@ -83,7 +83,7 @@ begin
     if (DefineNode.NodeType = ELEMENT_NODE) and (DefineNode.NodeName = 'define') then
     begin
       if Assigned(DefineNode.FirstChild) then
-        ADefines.Add(Trim(DefineNode.TextContent));
+        ADefines.Add(Trim(string(DefineNode.TextContent)));
     end;
   end;
 end;
@@ -107,7 +107,7 @@ begin
     if (OptionNode.NodeType = ELEMENT_NODE) and (OptionNode.NodeName = 'option') then
     begin
       if Assigned(OptionNode.FirstChild) then
-        AOptions.Add(Trim(OptionNode.TextContent));
+        AOptions.Add(Trim(string(OptionNode.TextContent)));
     end;
   end;
 end;
@@ -123,7 +123,7 @@ begin
   if not Assigned(AParent) then
     Exit;
 
-  PathsNode := AParent.FindNode(ATagName);
+  PathsNode := AParent.FindNode(UnicodeString(ATagName));
   if not Assigned(PathsNode) then
     Exit;
 
@@ -135,7 +135,7 @@ begin
     begin
       if Assigned(PathNode.FirstChild) then
       begin
-        PathValue := Trim(PathNode.TextContent);
+        PathValue := Trim(string(PathNode.TextContent));
         if PathValue <> '' then
         begin
           // Get optional condition attribute
@@ -144,7 +144,7 @@ begin
           begin
             Element := TDOMElement(PathNode);
             if Element.HasAttribute('condition') then
-              Condition := Trim(Element.GetAttribute('condition'));
+              Condition := Trim(string(Element.GetAttribute('condition')));
           end;
 
           ConditionalPath := TConditionalPath.Create(PathValue, Condition);
@@ -240,7 +240,7 @@ begin
       if (OptionNode.NodeType = ELEMENT_NODE) and (OptionNode.NodeName = 'option') then
       begin
         if Assigned(OptionNode.FirstChild) then
-          AConfig.TestConfig.FrameworkOptions.Add(Trim(OptionNode.TextContent));
+          AConfig.TestConfig.FrameworkOptions.Add(Trim(string(OptionNode.TextContent)));
       end;
     end;
   end;
@@ -278,7 +278,7 @@ begin
     begin
       if Assigned(IncludeNode.FirstChild) then
       begin
-        IncludeDir := Trim(IncludeNode.TextContent);
+        IncludeDir := Trim(string(IncludeNode.TextContent));
         if IncludeDir <> '' then
           AConfig.SourcePackageConfig.IncludeDirs.Add(IncludeDir);
       end;
@@ -303,7 +303,7 @@ begin
     begin
       if Assigned(ModuleNode.FirstChild) then
       begin
-        ModulePath := Trim(ModuleNode.TextContent);
+        ModulePath := Trim(string(ModuleNode.TextContent));
         if ModulePath <> '' then
           AModuleList.Add(ModulePath);
       end;

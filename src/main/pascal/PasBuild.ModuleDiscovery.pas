@@ -72,7 +72,6 @@ var
   J: Integer;
   DependencyPath: string;
   AbsoluteDependencyPath: string;
-  DependencyModule: TModuleInfo;
   DependencyModuleInfo: TModuleInfo;
 begin
   Result := TModuleRegistry.Create;

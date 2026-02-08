@@ -674,7 +674,7 @@ end;
 class function TUtils.CollectIncludeFiles(const ABaseDir: string): TStringList;
 var
   SearchRec: TSearchRec;
-  BasePath, FileName: string;
+  BasePath: string;
   SubDirs: TStringList;
   SubDir: string;
 begin

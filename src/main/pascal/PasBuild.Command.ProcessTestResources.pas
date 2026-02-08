@@ -30,7 +30,7 @@ type
     function ApplyFiltering(const AContent: string): string;
     procedure CopyResources(const ASourceDir, ATargetDir: string);
   public
-    constructor Create(AConfig: TProjectConfig; AResourcesConfig: TResourcesConfig; const ATargetDir: string);
+    constructor Create(AConfig: TProjectConfig; AResourcesConfig: TResourcesConfig; const ATargetDir: string); reintroduce;
 
     function GetName: string; override;
     function Execute: Integer; override;
