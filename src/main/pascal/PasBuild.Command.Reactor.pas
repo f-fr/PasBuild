@@ -22,6 +22,7 @@ uses
   PasBuild.Command.Compile,
   PasBuild.Command.Test,
   PasBuild.Command.Package,
+  PasBuild.Command.Install,
   PasBuild.Utils;
 
 type
@@ -271,6 +272,9 @@ begin
 
           'test':
             ModuleCommand := TTestCommand.Create(ModuleConfig, FProfileIds);
+
+          'install':
+            ModuleCommand := TInstallCommand.Create(ModuleConfig, FProfileIds);
 
           'package':
           begin

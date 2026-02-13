@@ -250,6 +250,22 @@ Error: Module "app" cannot depend on aggregator "aggregator" (packaging=pom)
 
 Only libraries and applications can be compiled and depended upon.
 
+=== External Dependencies
+
+In addition to `<moduleDependencies>` (between modules in the same aggregator), modules can also declare `<dependencies>` on projects installed to the local repository:
+
+[source,xml]
+----
+<dependencies>
+  <dependency>
+    <name>some-external-lib</name>
+    <version>1.0.0</version>
+  </dependency>
+</dependencies>
+----
+
+External dependencies are resolved from `~/.pasbuild/repository/` at compile time. Use `pasbuild install` in the dependency project to make it available. See link:dependency-management-design.adoc[Dependency Management Design] for details.
+
 == Project Paths
 
 Paths in `<modules>` are relative to the module's directory:

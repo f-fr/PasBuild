@@ -43,7 +43,13 @@ type
 
     { FPC detection }
     class function DetectFPCVersion: string;
+    class function DetectTargetCPU: string;
+    class function DetectTargetOS: string;
+    class function GetTargetTriplet: string;
     class function IsFPCAvailable: Boolean;
+
+    { Path utilities }
+    class function QuotePath(const APath: string): string;
 
     { Platform utilities }
     class function GetPlatformExecutableSuffix: string;
@@ -391,6 +397,35 @@ begin
     Result := 'Not found';
 end;
 
+class function TUtils.DetectTargetCPU: string;
+var
+  Output: string;
+  ExitCode: Integer;
+begin
+  Result := 'Unknown';
+
+  ExitCode := ExecuteProcessWithCapture('fpc -iTP', Output);
+  if ExitCode = 0 then
+    Result := Trim(Output);
+end;
+
+class function TUtils.DetectTargetOS: string;
+var
+  Output: string;
+  ExitCode: Integer;
+begin
+  Result := 'Unknown';
+
+  ExitCode := ExecuteProcessWithCapture('fpc -iTO', Output);
+  if ExitCode = 0 then
+    Result := Trim(Output);
+end;
+
+class function TUtils.GetTargetTriplet: string;
+begin
+  Result := DetectTargetCPU + '-' + DetectTargetOS + '-' + DetectFPCVersion;
+end;
+
 class function TUtils.IsFPCAvailable: Boolean;
 var
   ExitCode: Integer;
@@ -398,6 +433,14 @@ var
 begin
   ExitCode := ExecuteProcessWithCapture('fpc -iV', Output);
   Result := (ExitCode = 0);
+end;
+
+class function TUtils.QuotePath(const APath: string): string;
+begin
+  if (APath <> '') and (Pos(' ', APath) > 0) then
+    Result := '"' + APath + '"'
+  else
+    Result := APath;
 end;
 
 class function TUtils.GetPlatformExecutableSuffix: string;

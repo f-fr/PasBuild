@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>test-consumer</name>
+  <version>1.0.0</version>
+  <build>
+    <mainSource>Main.pas</mainSource>
+  </build>
+  <dependencies>
+    <dependency>
+      <name>fpgui-framework</name>
+      <version>1.0.0</version>
+    </dependency>
+    <dependency>
+      <name>my-utils</name>
+      <version>2.1.0</version>
+    </dependency>
+  </dependencies>
+</project>

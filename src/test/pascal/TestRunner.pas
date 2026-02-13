@@ -16,7 +16,12 @@ uses
   Classes, SysUtils, fpcunit, testregistry, consoletestrunner,
   PasBuild.Test.Types.MultiModule,
   PasBuild.Test.Config.MultiModule,
-  PasBuild.Test.ModuleDiscovery;
+  PasBuild.Test.ModuleDiscovery,
+  PasBuild.Test.Utils,
+  PasBuild.Test.Repository,
+  PasBuild.Test.Config.Dependencies,
+  PasBuild.Test.Dependencies,
+  PasBuild.Test.Integration.Dependencies;
 
 var
   Application: TTestRunner;

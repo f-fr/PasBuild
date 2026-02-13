@@ -22,7 +22,7 @@ const
 
 type
   { Valid build goals }
-  TBuildGoal = (bgUnknown, bgClean, bgProcessResources, bgCompile, bgProcessTestResources, bgTestCompile, bgTest, bgPackage, bgSourcePackage, bgInit, bgHelp, bgVersion);
+  TBuildGoal = (bgUnknown, bgClean, bgProcessResources, bgCompile, bgProcessTestResources, bgTestCompile, bgTest, bgPackage, bgSourcePackage, bgInstall, bgInit, bgHelp, bgVersion);
 
   { Parsed command-line arguments }
   TCommandLineArgs = record
@@ -76,6 +76,8 @@ begin
     Result := bgPackage
   else if GoalLower = 'source-package' then
     Result := bgSourcePackage
+  else if GoalLower = 'install' then
+    Result := bgInstall
   else if GoalLower = 'init' then
     Result := bgInit
   else if (GoalLower = '--help') or (GoalLower = '-h') then
@@ -97,6 +99,7 @@ begin
     bgTest: Result := 'test';
     bgPackage: Result := 'package';
     bgSourcePackage: Result := 'source-package';
+    bgInstall: Result := 'install';
     bgInit: Result := 'init';
     bgHelp: Result := '--help';
     bgVersion: Result := '--version';
@@ -221,6 +224,7 @@ begin
   WriteLn('  test                    Run tests (runs: compile -> process-test-resources -> test-compile -> test)');
   WriteLn('  package                 Create release archive (runs: clean -> compile -> package)');
   WriteLn('  source-package          Create source archive with src/, docs, and configured files');
+  WriteLn('  install                 Install compiled units to local repository (~/.pasbuild/repository/)');
   WriteLn('  init                    Create new project structure');
   WriteLn;
   WriteLn('Options:');

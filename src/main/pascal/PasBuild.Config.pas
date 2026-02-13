@@ -34,6 +34,7 @@ type
     class procedure ParseResourcesSection(AResourcesNode: TDOMNode; AResourcesConfig: TResourcesConfig);
     class procedure ParseSourcePackageSection(ASourcePackageNode: TDOMNode; AConfig: TProjectConfig);
     class procedure ParseModules(AModulesNode: TDOMNode; AModuleList: TStringList);
+    class procedure ParseDependencies(ADepsNode: TDOMNode; AConfig: TProjectConfig);
     class procedure ParseProfile(AProfileNode: TDOMNode; AProfile: TProfile);
     class procedure ParseProfiles(AProfilesNode: TDOMNode; AConfig: TProjectConfig);
     class procedure ValidatePackagingRules(AConfig: TProjectConfig);
@@ -311,6 +312,42 @@ begin
   end;
 end;
 
+class procedure TConfigLoader.ParseDependencies(ADepsNode: TDOMNode; AConfig: TProjectConfig);
+var
+  DepNode: TDOMNode;
+  DepName, DepVersion: string;
+  I, J: Integer;
+begin
+  if not Assigned(ADepsNode) then
+    Exit; // Dependencies section is optional
+
+  for I := 0 to ADepsNode.ChildNodes.Count - 1 do
+  begin
+    DepNode := ADepsNode.ChildNodes[I];
+    if (DepNode.NodeType = ELEMENT_NODE) and (DepNode.NodeName = 'dependency') then
+    begin
+      DepName := GetNodeText(DepNode, 'name');
+      DepVersion := GetNodeText(DepNode, 'version');
+
+      if DepName = '' then
+        raise EProjectConfigError.Create('Dependency missing required <name>');
+      if DepVersion = '' then
+        raise EProjectConfigError.CreateFmt('Dependency "%s" missing required <version>', [DepName]);
+      if not ValidateSemanticVersion(DepVersion) then
+        raise EProjectConfigError.CreateFmt('Dependency "%s" has invalid version: %s', [DepName, DepVersion]);
+
+      // Check for duplicate dependency names
+      for J := 0 to AConfig.Dependencies.Count - 1 do
+      begin
+        if AConfig.Dependencies[J].Name = DepName then
+          raise EProjectConfigError.CreateFmt('Duplicate dependency: "%s"', [DepName]);
+      end;
+
+      AConfig.Dependencies.Add(TDependencyInfo.Create(DepName, DepVersion));
+    end;
+  end;
+end;
+
 class procedure TConfigLoader.ParseProfile(AProfileNode: TDOMNode; AProfile: TProfile);
 begin
   // Parse profile ID (required)
@@ -434,6 +471,9 @@ begin
       // Parse <moduleDependencies> section (optional, libraries and applications only)
       // Lists module dependencies for linking
       ParseModules(RootNode.FindNode('moduleDependencies'), Result.ModuleDependencies);
+
+      // Parse <dependencies> section (optional, external repository dependencies)
+      ParseDependencies(RootNode.FindNode('dependencies'), Result);
 
       // Validate packaging rules (multi-module constraints)
       ValidatePackagingRules(Result);

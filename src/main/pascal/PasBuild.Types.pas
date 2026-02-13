@@ -33,6 +33,7 @@ type
   TSourcePackageConfig = class;
   TProjectConfig = class;
   TConditionalPath = class;
+  TDependencyInfo = class;
   TModuleInfo = class;
   TModuleRegistry = class;
 
@@ -140,6 +141,21 @@ type
     property IncludeDirs: TStringList read FIncludeDirs;
   end;
 
+  { TDependencyInfo - External dependency declaration }
+  TDependencyInfo = class
+  private
+    FName: string;
+    FVersion: string;
+  public
+    constructor Create(const AName, AVersion: string);
+
+    property Name: string read FName write FName;
+    property Version: string read FVersion write FVersion;
+  end;
+
+  { List of dependency declarations }
+  TDependencyList = specialize TFPGObjectList<TDependencyInfo>;
+
   { TProjectConfig - Complete project configuration }
   TProjectConfig = class
   private
@@ -157,6 +173,7 @@ type
     FProfiles: TProfileList;
     FModules: TStringList;                   // Child modules (for aggregator)
     FModuleDependencies: TStringList;        // Module dependencies (for library/app)
+    FDependencies: TDependencyList;          // External dependencies (from local repository)
   public
     constructor Create;
     destructor Destroy; override;
@@ -175,6 +192,7 @@ type
     property Profiles: TProfileList read FProfiles;
     property Modules: TStringList read FModules;                           // Child modules list
     property ModuleDependencies: TStringList read FModuleDependencies;    // Module dependencies
+    property Dependencies: TDependencyList read FDependencies;            // External dependencies
   end;
 
   { TModuleInfo - Module metadata for build ordering }
@@ -364,6 +382,9 @@ begin
   FModuleDependencies := TStringList.Create;
   FModuleDependencies.Duplicates := dupIgnore;
 
+  FDependencies := TDependencyList.Create;
+  FDependencies.FreeObjects := True;
+
   // Set defaults
   FAuthor := 'Unknown';
   FLicense := 'Proprietary';
@@ -379,7 +400,17 @@ begin
   FProfiles.Free;
   FModules.Free;
   FModuleDependencies.Free;
+  FDependencies.Free;
   inherited Destroy;
+end;
+
+{ TDependencyInfo }
+
+constructor TDependencyInfo.Create(const AName, AVersion: string);
+begin
+  inherited Create;
+  FName := AName;
+  FVersion := AVersion;
 end;
 
 { TModuleInfo implementation }

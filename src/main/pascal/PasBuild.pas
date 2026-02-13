@@ -30,9 +30,12 @@ uses
   PasBuild.Command.SourcePackage,
   PasBuild.Command.AggregatedPackage,
   PasBuild.Command.AggregatedSourcePackage,
+  PasBuild.Command.Install,
   PasBuild.Command.Init,
   PasBuild.Command.Reactor,
   PasBuild.ModuleDiscovery,
+  PasBuild.Repository,
+  PasBuild.Dependencies,
   PasBuild.Utils;
 
 var
@@ -41,6 +44,7 @@ var
   Executor: TCommandExecutor;
   Command: TBuildCommand;
   Registry: TModuleRegistry;
+  Resolver: TDependencyResolver;
   AggregatorDir: string;
 
 begin
@@ -117,6 +121,28 @@ begin
       end;
     end;
 
+    // Resolve external dependencies (for non-aggregator projects with <dependencies>)
+    if (Args.Goal <> bgInit) and (Config.BuildConfig.ProjectType <> ptPom) and
+       (Config.Dependencies.Count > 0) then
+    begin
+      Resolver := TDependencyResolver.Create;
+      try
+        Resolver.Verbose := Args.Verbose;
+        try
+          Resolver.ResolveDependencies(Config);
+        except
+          on E: EDependencyError do
+          begin
+            TUtils.LogError(E.Message);
+            ExitCode := 1;
+            Exit;
+          end;
+        end;
+      finally
+        Resolver.Free;
+      end;
+    end;
+
     // Create command executor
     Executor := TCommandExecutor.Create;
     Registry := nil;
@@ -154,6 +180,9 @@ begin
 
             bgSourcePackage:
               Command := TAggregatedSourcePackageCommand.Create(Config, Args.ProfileIds, Registry);
+
+            bgInstall:
+              Command := TReactorCommand.Create(Config, Args.ProfileIds, Registry, 'install', Args.SelectedModule);
 
             else
               // For other goals, use single-module behavior
@@ -202,6 +231,9 @@ begin
 
           bgSourcePackage:
             Command := TSourcePackageCommand.Create(Config, Args.ProfileIds);
+
+          bgInstall:
+            Command := TInstallCommand.Create(Config, Args.ProfileIds);
 
           bgInit:
             Command := TInitCommand.Create(Config, Args.ProfileIds);

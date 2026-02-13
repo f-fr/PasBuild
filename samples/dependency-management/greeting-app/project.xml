@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>greeting-app</name>
+  <version>1.0.0</version>
+  <author>PasBuild Team</author>
+  <license>MIT</license>
+
+  <build>
+    <mainSource>Main.pas</mainSource>
+    <executableName>greeting</executableName>
+  </build>
+
+  <!-- External dependency: string-utils must be installed first -->
+  <dependencies>
+    <dependency>
+      <name>string-utils</name>
+      <version>1.0.0</version>
+    </dependency>
+  </dependencies>
+</project>

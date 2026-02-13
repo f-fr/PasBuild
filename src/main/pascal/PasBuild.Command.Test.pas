@@ -141,26 +141,26 @@ begin
 
   // Output directory for test executable
   OutputDir := TUtils.NormalizePath(Config.BuildConfig.OutputDirectory);
-  Result := Result + ' -FE' + OutputDir;
+  Result := Result + ' -FE' + TUtils.QuotePath(OutputDir);
 
   // Test unit output directory (separate from main units)
-  Result := Result + ' -FU' + OutputDir + DirectorySeparator + 'test-units';
+  Result := Result + ' -FU' + TUtils.QuotePath(OutputDir + DirectorySeparator + 'test-units');
 
   // Test executable name
   Result := Result + ' -oTestRunner' + TUtils.GetPlatformExecutableSuffix;
 
   // Link to already-compiled main units (compiled by 'compile' goal)
-  Result := Result + ' -Fu' + OutputDir + DirectorySeparator + 'units';
+  Result := Result + ' -Fu' + TUtils.QuotePath(OutputDir + DirectorySeparator + 'units');
 
   // Add test source directory and its subdirectories
   TestBaseDir := TUtils.NormalizePath('src/test/pascal');
-  Result := Result + ' -Fu' + TestBaseDir;
+  Result := Result + ' -Fu' + TUtils.QuotePath(TestBaseDir);
 
   // Scan and add test subdirectories (unit paths)
   UnitPaths := TUtils.ScanForUnitPaths(TestBaseDir);
   try
     for UnitPath in UnitPaths do
-      Result := Result + ' -Fu' + UnitPath;
+      Result := Result + ' -Fu' + TUtils.QuotePath(UnitPath);
   finally
     UnitPaths.Free;
   end;
@@ -169,7 +169,7 @@ begin
   IncludePaths := TUtils.ScanForIncludePaths(TestBaseDir);
   try
     for IncludePath in IncludePaths do
-      Result := Result + ' -Fi' + IncludePath;
+      Result := Result + ' -Fi' + TUtils.QuotePath(IncludePath);
   finally
     IncludePaths.Free;
   end;
