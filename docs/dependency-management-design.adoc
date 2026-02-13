@@ -1,0 +1,903 @@
+= Dependency Management Design Specification
+:toc: left
+:toclevels: 4
+:sectnums:
+:source-highlighter: rouge
+:icons: font
+
+== Overview
+
+This specification defines external dependency management for PasBuild, enabling projects to declare and consume compiled artifacts from other PasBuild projects through a local repository. This feature addresses the cross-project dependency problem where independently-maintained PasBuild projects need to reference each other's compiled units.
+
+=== Motivation
+
+Current PasBuild multi-module support handles intra-project dependencies well: modules within a single aggregator project declare `<moduleDependencies>` and the reactor builds them in topological order. However, developers working across separate PasBuild projects face these limitations:
+
+* **No standard dependency mechanism**: Consumers must manually specify `-Fu` compiler options pointing to dependency build artifacts
+* **Hardcoded paths**: Manual `-Fu` references break across machines and developer environments
+* **No version tracking**: No way to verify which version of a dependency is being compiled against
+* **No transitive resolution**: If dependency A requires dependency B, the consumer must manually discover and reference both
+* **No platform safety**: Compiled `.ppu` files are tied to a specific FPC version and target architecture; no mechanism to detect mismatches
+
+=== Use Cases
+
+Primary scenarios for cross-project dependencies:
+
+1. **GUI Framework + Application**: Application project depends on separately-maintained GUI toolkit (e.g., fpGUI)
+2. **Shared Libraries**: Multiple unrelated applications share a common utility library
+3. **Framework Ecosystems**: Collection of independently-versioned libraries forming a toolkit
+4. **Team Projects**: Shared infrastructure libraries consumed by multiple team projects
+5. **Open Source Libraries**: Third-party PasBuild libraries consumed by downstream projects
+
+=== Design Principles
+
+* **Maven Alignment**: Follow Maven's `install` + `<dependencies>` pattern
+* **Platform Awareness**: Repository paths encode FPC target (CPU, OS, compiler version) to prevent `.ppu` file mismatches
+* **Future-Ready**: Local repository structure designed to support remote repository federation in a future release
+* **Minimal Disruption**: New `<dependencies>` section integrates with existing `ResolvedModulePaths` infrastructure
+* **Coexistence**: External dependencies and intra-project module dependencies (`<moduleDependencies>`) operate independently and compose naturally
+
+
+== Repository Architecture
+
+=== Local Repository Location
+
+The local repository resides at a well-known path in the user's home directory:
+
+----
+~/.pasbuild/repository/
+----
+
+**Platform-specific paths:**
+
+[cols="1,2"]
+|===
+|Platform |Default Path
+
+|Linux / FreeBSD
+|`/home/<user>/.pasbuild/repository/`
+
+|macOS
+|`/Users/<user>/.pasbuild/repository/`
+
+|Windows
+|`C:\Users\<user>\.pasbuild\repository\`
+|===
+
+**Future consideration:** A configuration mechanism (environment variable or settings file) may allow overriding the repository location. This would support CI/CD environments and shared team repositories on network drives.
+
+=== Repository Path Structure
+
+Each installed artifact is stored under a path that encodes the artifact identity and the compilation target:
+
+----
+~/.pasbuild/repository/<name>/<version>/<targetCPU>-<targetOS>-<fpcVersion>/
+----
+
+**Example layout:**
+
+[source]
+----
+~/.pasbuild/
+└── repository/
+    ├── fpgui-framework/
+    │   └── 1.0.0/
+    │       ├── x86_64-linux-3.2.2/
+    │       │   ├── metadata.xml
+    │       │   └── units/
+    │       │       ├── fpg_base.ppu
+    │       │       ├── fpg_base.o
+    │       │       ├── fpg_main.ppu
+    │       │       ├── fpg_main.o
+    │       │       └── ...
+    │       └── i386-win32-3.2.2/
+    │           ├── metadata.xml
+    │           └── units/
+    │               └── ...
+    ├── fpgui-uidesigner/
+    │   └── 1.0.0/
+    │       └── x86_64-linux-3.2.2/
+    │           ├── metadata.xml
+    │           └── units/
+    │               └── ...
+    └── my-utils-library/
+        └── 2.1.0/
+            └── x86_64-linux-3.2.2/
+                ├── metadata.xml
+                └── units/
+                    └── ...
+----
+
+**Rationale for target triplet in path:**
+
+Free Pascal `.ppu` files are not portable across compiler versions or target architectures. Including the target triplet in the path:
+
+* Prevents cryptic compiler errors from `.ppu` version mismatches
+* Allows multiple targets to coexist (cross-compilation scenarios)
+* Enables future remote repositories to host multi-platform artifacts
+* Mirrors the problem that Maven solves with classifier attributes
+
+=== Target Triplet Detection
+
+The target triplet is constructed from three FPC compiler queries:
+
+[cols="1,2,2"]
+|===
+|Component |FPC Command |Example Output
+
+|Target CPU
+|`fpc -iTP`
+|`x86_64`, `i386`, `aarch64`, `arm`
+
+|Target OS
+|`fpc -iTO`
+|`linux`, `win32`, `win64`, `darwin`, `freebsd`
+
+|FPC Version
+|`fpc -iV`
+|`3.2.2`, `3.2.4`, `3.3.1`
+|===
+
+**Constructed triplet format:** `<targetCPU>-<targetOS>-<fpcVersion>`
+
+**Examples:**
+
+* `x86_64-linux-3.2.2`
+* `i386-win32-3.2.2`
+* `aarch64-darwin-3.2.4`
+
+NOTE: The existing `TUtils.DetectFPCVersion` method already queries `fpc -iV`. New utility methods `DetectTargetCPU` and `DetectTargetOS` follow the same pattern using `fpc -iTP` and `fpc -iTO`.
+
+=== Artifact Contents
+
+An installed artifact contains only the compiled output needed by consumers:
+
+[cols="1,3"]
+|===
+|File / Directory |Purpose
+
+|`metadata.xml`
+|Artifact metadata: name, version, packaging type, dependencies, build environment
+
+|`units/`
+|Compiled `.ppu` and `.o` files copied from the source project's `target/units/` directory
+|===
+
+**What is NOT included:**
+
+* Source files (`.pas`, `.pp`, `.inc`) - not needed; FPC resolves all references from `.ppu` files at compile time
+* Executables - only libraries produce consumable artifacts
+* Test artifacts - test units are not installed
+
+=== Metadata Format
+
+Each installed artifact includes a `metadata.xml` file describing the artifact and its dependencies:
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<artifact>
+  <!-- Artifact identity -->
+  <name>fpgui-framework</name>
+  <version>1.0.0</version>
+  <packaging>library</packaging>
+
+  <!-- Build environment (informational + validation) -->
+  <build>
+    <fpcVersion>3.2.2</fpcVersion>
+    <targetCPU>x86_64</targetCPU>
+    <targetOS>linux</targetOS>
+    <timestamp>2026-02-12T14:30:00</timestamp>
+  </build>
+
+  <!-- Dependencies this artifact requires (for transitive resolution) -->
+  <dependencies>
+    <!-- Example: if fpgui-framework depended on another library -->
+    <!--
+    <dependency>
+      <name>some-base-library</name>
+      <version>2.0.0</version>
+    </dependency>
+    -->
+  </dependencies>
+</artifact>
+----
+
+**Field specifications:**
+
+[cols="1,2,2"]
+|===
+|Field |Type |Description
+
+|`name`
+|String
+|Artifact name, matching `<name>` from source project.xml
+
+|`version`
+|String
+|Semantic version, matching `<version>` from source project.xml
+
+|`packaging`
+|Enum: `library`, `application`
+|Source project's packaging type
+
+|`build/fpcVersion`
+|String
+|FPC version used to compile the artifact
+
+|`build/targetCPU`
+|String
+|Target CPU architecture
+
+|`build/targetOS`
+|String
+|Target operating system
+
+|`build/timestamp`
+|ISO 8601
+|Installation timestamp
+
+|`dependencies`
+|List of dependency elements
+|Dependencies this artifact requires (enables transitive resolution)
+|===
+
+**Future remote repository considerations:**
+
+The metadata format is designed to be extensible for remote repository scenarios:
+
+* A repository index file could aggregate metadata across all artifacts
+* Checksum fields (`sha256`) could be added for integrity verification
+* A `repository` element could specify the origin URL
+* The format is compatible with HTTP-based serving as static files
+
+
+== Install Goal
+
+=== Purpose
+
+The `install` goal compiles a project and copies its compiled artifacts to the local repository, making them available for consumption by other PasBuild projects.
+
+=== Usage
+
+[source,shell]
+----
+pasbuild install                     # Install project (single or all modules)
+pasbuild install -m framework        # Install specific module only
+pasbuild install -p release          # Install with profile
+pasbuild install -v                  # Verbose output
+----
+
+=== Goal Dependencies
+
+The `install` goal depends on successful compilation:
+
+----
+process-resources → compile → install
+----
+
+For multi-module projects, the reactor executes the full dependency chain for each module before installing.
+
+=== Behavior: Single-Module Project
+
+For a standard `library` or `application` project:
+
+1. Execute `compile` goal (with dependencies: `process-resources` -> `compile`)
+2. Detect FPC target triplet (`fpc -iTP`, `fpc -iTO`, `fpc -iV`)
+3. Construct repository path: `~/.pasbuild/repository/<name>/<version>/<triplet>/`
+4. Create repository directories (including `units/` subdirectory)
+5. Copy all `.ppu` and `.o` files from `target/units/` to repository `units/`
+6. Generate `metadata.xml` with artifact identity, build environment, and dependencies
+7. Display summary: `[INFO] Installed <name>:<version> to local repository`
+
+=== Behavior: Multi-Module Project
+
+For an aggregator (`packaging=pom`) project:
+
+1. Discover and register all modules (existing module discovery)
+2. Compute topological build order (existing reactor logic)
+3. For each non-aggregator module in build order:
+   a. Execute `compile` for the module (reactor handles dependency ordering)
+   b. Install the module's artifacts to the local repository
+4. Skip the aggregator itself (no installable artifacts)
+5. Display summary: `[INFO] Installed 3 modules to local repository`
+
+**Example:** Running `pasbuild install` in the fpGUI aggregator project:
+
+[source]
+----
+[INFO] Reactor build order:
+[INFO]   1. fpgui-framework (library)
+[INFO]   2. fpgui-uidesigner (application)
+[INFO]
+[INFO] Building module 1/2: fpgui-framework
+[INFO] Compiling project...
+[INFO] Build successful
+[INFO] Installed fpgui-framework:1.0.0 to local repository
+[INFO]
+[INFO] Building module 2/2: fpgui-uidesigner
+[INFO] Compiling project...
+[INFO] Build successful
+[INFO] Installed fpgui-uidesigner:1.0.0 to local repository
+[INFO]
+[INFO] Reactor install complete: 2/2 modules installed
+----
+
+=== Overwrite Policy
+
+Installing an artifact with an existing name, version, and target triplet **overwrites** the previous installation without warning. This matches Maven behavior and supports the common workflow of iterating on a library and reinstalling.
+
+=== Packaging Type Constraints
+
+[cols="1,2"]
+|===
+|Packaging Type |Install Behavior
+
+|`library`
+|Installs compiled units (`.ppu`, `.o`) - primary use case
+
+|`application`
+|Installs compiled units (`.ppu`, `.o`) - allows other applications to reuse units from an application project
+
+|`pom` (aggregator)
+|Not installable directly; triggers installation of child modules
+|===
+
+
+== Dependencies Declaration
+
+=== Configuration Format
+
+Projects declare external dependencies in a new `<dependencies>` section in `project.xml`:
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>MyGuiApp</name>
+  <version>1.0.0</version>
+
+  <build>
+    <mainSource>Main.pas</mainSource>
+    <executableName>myguiapp</executableName>
+  </build>
+
+  <!-- External dependencies resolved from local repository -->
+  <dependencies>
+    <dependency>
+      <name>fpgui-framework</name>
+      <version>1.0.0</version>
+    </dependency>
+  </dependencies>
+</project>
+----
+
+=== Dependency Element Specification
+
+[cols="1,2,2"]
+|===
+|Field |Type |Description
+
+|`name`
+|String (required)
+|Artifact name as installed in the local repository
+
+|`version`
+|String (required)
+|Exact semantic version to resolve (no version ranges in initial implementation)
+|===
+
+=== Multiple Dependencies
+
+Projects may declare multiple dependencies:
+
+[source,xml]
+----
+<dependencies>
+  <dependency>
+    <name>fpgui-framework</name>
+    <version>1.0.0</version>
+  </dependency>
+  <dependency>
+    <name>my-utils-library</name>
+    <version>2.1.0</version>
+  </dependency>
+</dependencies>
+----
+
+=== Interaction with Module Dependencies
+
+External `<dependencies>` and intra-project `<moduleDependencies>` serve different purposes and coexist:
+
+[cols="1,2,2"]
+|===
+|Mechanism |Scope |Resolution Source
+
+|`<moduleDependencies>`
+|Sibling modules within same aggregator
+|Discovered modules in project tree
+
+|`<dependencies>`
+|External projects from local repository
+|`~/.pasbuild/repository/`
+|===
+
+A module may use both simultaneously:
+
+[source,xml]
+----
+<project>
+  <name>demo-app</name>
+  <version>1.0.0</version>
+
+  <build>
+    <mainSource>Main.pas</mainSource>
+  </build>
+
+  <!-- Sibling module dependency (within same aggregator) -->
+  <moduleDependencies>
+    <module>../core</module>
+  </moduleDependencies>
+
+  <!-- External dependency (from local repository) -->
+  <dependencies>
+    <dependency>
+      <name>fpgui-framework</name>
+      <version>1.0.0</version>
+    </dependency>
+  </dependencies>
+</project>
+----
+
+=== Validation Rules
+
+Configuration-time validation:
+
+* `<name>` must be non-empty
+* `<version>` must be valid semantic version (same regex as project version)
+* Duplicate dependency names are rejected
+* `<dependencies>` is allowed on all packaging types (`library`, `application`, `pom`)
+* Aggregators with `<dependencies>` pass them to child modules (future enhancement consideration)
+
+
+== Dependency Resolution
+
+=== Resolution Algorithm
+
+At compile time, dependency resolution proceeds as follows:
+
+[source]
+----
+For each <dependency> in project.xml:
+  1. Detect current FPC target triplet
+  2. Construct repository path:
+       ~/.pasbuild/repository/<name>/<version>/<triplet>/
+  3. If path does not exist → ERROR (see Error Handling)
+  4. Read metadata.xml from repository path
+  5. Add <repository_path>/units/ to resolved dependency paths
+  6. Process transitive dependencies from metadata.xml (recursive)
+  7. Add all resolved paths to BuildConfig.ResolvedModulePaths
+----
+
+=== Transitive Dependency Resolution
+
+If dependency A declares dependencies in its `metadata.xml`, those transitive dependencies are automatically resolved:
+
+[source]
+----
+MyApp depends on:
+  fpgui-framework 1.0.0
+    └── (fpgui-framework's metadata.xml lists no further dependencies)
+
+MyApp depends on:
+  advanced-widgets 1.0.0
+    └── fpgui-framework 1.0.0  (transitive, resolved from metadata.xml)
+----
+
+**Algorithm:**
+
+1. Maintain a visited set to prevent cycles
+2. For each dependency, recursively process its metadata.xml dependencies
+3. Add each resolved units path to the consumer's `ResolvedModulePaths`
+4. Duplicate paths are ignored (existing `dupIgnore` behavior on `ResolvedModulePaths`)
+
+=== Resolution Timing
+
+Dependency resolution occurs at the start of the `compile` goal, after configuration loading but before compiler command construction:
+
+[source]
+----
+1. Config.LoadProjectXML         (existing)
+2. Config.ValidateSchema         (existing)
+3. ResolveDependencies           (NEW - resolve from local repository)
+4. Builder.BuildCommand          (existing - ResolvedModulePaths already populated)
+5. Builder.Execute               (existing)
+----
+
+This integrates cleanly because the compile command already iterates `ResolvedModulePaths` to generate `-Fu` flags (see `PasBuild.Command.Compile.pas` lines 155-160).
+
+=== Error Handling
+
+[cols="1,2,2"]
+|===
+|Condition |Detection |Error Message
+
+|Dependency not installed
+|Repository path does not exist
+|`ERROR: Dependency '<name>:<version>' not found in local repository. Run 'pasbuild install' in the dependency project first.`
+
+|Target triplet mismatch
+|Version exists but not for current target
+|`ERROR: Dependency '<name>:<version>' found but not for target <triplet>. Available targets: <list>. Reinstall the dependency with the current FPC configuration.`
+
+|Missing metadata.xml
+|Metadata file absent in repository path
+|`ERROR: Corrupted repository entry for '<name>:<version>': metadata.xml missing. Reinstall the dependency.`
+
+|Transitive dependency missing
+|Referenced dependency in metadata.xml not installed
+|`ERROR: Transitive dependency '<name>:<version>' (required by '<parent>') not found in local repository.`
+
+|Circular dependency
+|Cycle detected during transitive resolution
+|`ERROR: Circular dependency detected: <A> -> <B> -> <A>`
+|===
+
+
+== Compiler Integration
+
+=== Fu Path Generation
+
+Resolved dependency paths are appended to the compiler command via the existing `ResolvedModulePaths` mechanism. No changes to the compiler command construction in `PasBuild.Command.Compile.pas` are required.
+
+**Compiler flag ordering:**
+
+[source]
+----
+fpc -Mobjfpc -O1 \
+    src/main/pascal/Main.pas \
+    -FEtarget -FUtarget/units \
+    -Fusrc/main/pascal \                                    # Source paths
+    -Fu../../core/target/units \                            # Module dependencies (if any)
+    -Fu/home/user/.pasbuild/repository/fpgui-framework/1.0.0/x86_64-linux-3.2.2/units \  # External dependencies
+    -omyguiapp
+----
+
+Module dependencies (`<moduleDependencies>`) and external dependencies (`<dependencies>`) both populate `ResolvedModulePaths` and appear as `-Fu` paths in the compiler command.
+
+=== Path Quoting for Spaces
+
+Repository paths include the user's home directory, which may contain spaces (e.g., `C:\Users\John Smith\` on Windows). Since FPC commands are executed via shell (`/bin/sh -c` on Unix, `cmd.exe /c` on Windows), unquoted paths with spaces would cause the shell to split arguments incorrectly.
+
+A `TUtils.QuotePath` utility method handles this by wrapping paths containing spaces in double quotes. This quoting is applied to all `-Fu`, `-Fi`, `-FE`, and `-FU` path arguments during compiler command construction, ensuring correct behavior regardless of the user's home directory path.
+
+=== Resolution Order
+
+Both dependency types populate the same `ResolvedModulePaths` list:
+
+1. Module dependencies resolved first (by reactor, as today)
+2. External dependencies resolved second (by new dependency resolver)
+
+This ordering ensures that local module units take precedence if naming conflicts arise.
+
+
+== CLI Integration
+
+=== New Goal: install
+
+Add `bgInstall` to the `TBuildGoal` enumeration:
+
+[source]
+----
+TBuildGoal = (..., bgInstall, ...);
+----
+
+CLI mapping:
+
+[source,shell]
+----
+pasbuild install                # Install to local repository
+----
+
+=== Verbose Output
+
+In verbose mode (`-v`), display resolved dependencies:
+
+[source]
+----
+[INFO] Resolving dependencies...
+[INFO]   fpgui-framework:1.0.0 → ~/.pasbuild/repository/fpgui-framework/1.0.0/x86_64-linux-3.2.2/units
+[INFO]   my-utils:2.1.0 → ~/.pasbuild/repository/my-utils/2.1.0/x86_64-linux-3.2.2/units
+[INFO] Dependencies resolved: 2 artifacts
+----
+
+During install, display what is being installed:
+
+[source]
+----
+[INFO] Installing fpgui-framework:1.0.0 for x86_64-linux-3.2.2
+[INFO]   Copying 24 files to ~/.pasbuild/repository/fpgui-framework/1.0.0/x86_64-linux-3.2.2/units/
+[INFO]   Writing metadata.xml
+[INFO] Installed fpgui-framework:1.0.0 to local repository
+----
+
+
+== Implementation Architecture
+
+=== New Units
+
+[cols="1,3"]
+|===
+|Unit |Responsibility
+
+|`PasBuild.Repository.pas`
+|Local repository path management, metadata read/write, artifact copying
+
+|`PasBuild.Dependencies.pas`
+|Dependency resolution from local repository, transitive resolution
+
+|`PasBuild.Command.Install.pas`
+|Install goal implementation, artifact installation orchestration
+|===
+
+=== Modified Units
+
+[cols="1,3"]
+|===
+|Unit |Changes
+
+|`PasBuild.Types.pas`
+|Add `TDependencyInfo` record/class; add `FDependencies: TDependencyList` to `TProjectConfig`
+
+|`PasBuild.Config.pas`
+|Parse `<dependencies><dependency>` elements during XML loading
+
+|`PasBuild.CLI.pas`
+|Add `bgInstall` to `TBuildGoal`; add `install` to goal string mapping
+
+|`PasBuild.Utils.pas`
+|Add `DetectTargetCPU`, `DetectTargetOS` methods; add `GetTargetTriplet` convenience method
+
+|`PasBuild.Command.Compile.pas`
+|Call dependency resolver before building compiler command (or invoke from existing orchestration point)
+
+|`PasBuild.Command.Reactor.pas`
+|Add install support to reactor loop for multi-module install
+|===
+
+=== New Types
+
+[source,pascal]
+----
+{ Represents a declared external dependency }
+TDependencyInfo = class
+  Name: string;       // Artifact name
+  Version: string;    // Required version
+end;
+
+{ List of dependency declarations }
+TDependencyList = specialize TObjectList<TDependencyInfo>;
+----
+
+NOTE: The exact class hierarchy and generics usage should follow existing patterns in `PasBuild.Types.pas`.
+
+
+== Future Considerations: Remote Repository
+
+The local repository design intentionally accommodates future remote repository support.
+
+=== Anticipated Remote Repository Model
+
+A remote repository would serve the same directory structure over HTTP(S):
+
+[source]
+----
+https://repo.example.com/repository/
+  └── fpgui-framework/
+      └── 1.0.0/
+          └── x86_64-linux-3.2.2/
+              ├── metadata.xml
+              └── units/
+                  ├── fpg_base.ppu
+                  └── ...
+----
+
+=== Design Decisions Supporting Remote Repositories
+
+[cols="1,3"]
+|===
+|Decision |Future Benefit
+
+|Flat file-based repository structure
+|Static files serve directly over HTTP without server-side logic
+
+|`metadata.xml` per artifact
+|Enables dependency resolution without downloading all artifacts
+
+|Target triplet in path
+|Remote repository can host artifacts for multiple platforms
+
+|Name + version addressing
+|Maps naturally to URL paths
+
+|Local repository as cache
+|Downloaded remote artifacts are stored locally in the same structure, acting as a cache
+|===
+
+=== Anticipated Dependency Resolution with Remote Repositories
+
+[source]
+----
+1. Check local repository for artifact
+2. If not found locally, check configured remote repositories
+3. Download artifact (metadata.xml + units/) to local repository
+4. Resolve from local cache
+----
+
+=== Not Addressed in This Specification
+
+The following concerns are deferred to a future remote repository specification:
+
+* Remote repository configuration in project.xml or settings file
+* Authentication and authorization
+* Checksum verification (SHA-256)
+* Repository index / search catalog
+* Artifact publishing (`pasbuild deploy` goal)
+* Mirror and proxy configuration
+* Version range resolution (e.g., `[1.0.0, 2.0.0)`)
+* Snapshot / development version handling
+* Repository metadata caching and update policies
+
+
+== Appendix: Complete Example
+
+=== Library Project: fpGUI Framework
+
+**Project structure:**
+
+[source]
+----
+fpgui/                                 # Aggregator
+├── project.xml                        # packaging=pom
+├── framework/                         # Library module
+│   ├── project.xml
+│   └── src/main/pascal/
+│       ├── fpg_base.pas
+│       ├── fpg_main.pas
+│       └── ...
+└── uidesigner/                        # Application module
+    ├── project.xml
+    └── src/main/pascal/
+        └── ...
+----
+
+**fpgui/project.xml (aggregator):**
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>fpgui</name>
+  <version>1.0.0</version>
+
+  <build>
+    <packaging>pom</packaging>
+  </build>
+
+  <modules>
+    <module>framework</module>
+    <module>uidesigner</module>
+  </modules>
+</project>
+----
+
+**fpgui/framework/project.xml (library):**
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>fpgui-framework</name>
+  <version>1.0.0</version>
+
+  <build>
+    <projectType>library</projectType>
+  </build>
+</project>
+----
+
+**Install command:**
+
+[source,shell]
+----
+cd fpgui
+pasbuild install
+----
+
+**Result in local repository:**
+
+[source]
+----
+~/.pasbuild/repository/
+├── fpgui-framework/
+│   └── 1.0.0/
+│       └── x86_64-linux-3.2.2/
+│           ├── metadata.xml
+│           └── units/
+│               ├── fpg_base.ppu
+│               ├── fpg_base.o
+│               └── ...
+└── fpgui-uidesigner/
+    └── 1.0.0/
+        └── x86_64-linux-3.2.2/
+            ├── metadata.xml
+            └── units/
+                └── ...
+----
+
+=== Consumer Project: MyGuiApp
+
+**Project structure:**
+
+[source]
+----
+myguiapp/
+├── project.xml
+└── src/main/pascal/
+    └── Main.pas
+----
+
+**myguiapp/project.xml:**
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>MyGuiApp</name>
+  <version>1.0.0</version>
+  <author>Developer</author>
+  <license>MIT</license>
+
+  <build>
+    <mainSource>Main.pas</mainSource>
+    <executableName>myguiapp</executableName>
+  </build>
+
+  <dependencies>
+    <dependency>
+      <name>fpgui-framework</name>
+      <version>1.0.0</version>
+    </dependency>
+  </dependencies>
+</project>
+----
+
+**Compile command and output:**
+
+[source,shell]
+----
+cd myguiapp
+pasbuild compile
+----
+
+[source]
+----
+[INFO] PasBuild 1.2.0
+[INFO] Resolving dependencies...
+[INFO]   fpgui-framework:1.0.0 → resolved
+[INFO] Executing goal: compile
+[INFO] Compiling project...
+[INFO] Build successful
+----
+
+**Generated FPC command (verbose):**
+
+[source,shell]
+----
+fpc -Mobjfpc -O1 \
+    src/main/pascal/Main.pas \
+    -FEtarget -FUtarget/units \
+    -Fusrc/main/pascal \
+    -Fu/home/user/.pasbuild/repository/fpgui-framework/1.0.0/x86_64-linux-3.2.2/units \
+    -omyguiapp
+----

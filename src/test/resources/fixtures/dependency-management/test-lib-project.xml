@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>test-lib</name>
+  <version>1.0.0</version>
+  <build>
+    <packaging>library</packaging>
+  </build>
+</project>

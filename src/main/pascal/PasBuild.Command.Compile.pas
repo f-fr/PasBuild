@@ -62,10 +62,10 @@ begin
 
   // Output directory
   OutputDir := TUtils.NormalizePath(Config.BuildConfig.OutputDirectory);
-  Result := Result + ' -FE' + OutputDir;
+  Result := Result + ' -FE' + TUtils.QuotePath(OutputDir);
 
   // Unit output directory
-  Result := Result + ' -FU' + OutputDir + DirectorySeparator + 'units';
+  Result := Result + ' -FU' + TUtils.QuotePath(OutputDir + DirectorySeparator + 'units');
 
   // Executable name
   ExeName := Config.BuildConfig.ExecutableName;
@@ -99,7 +99,7 @@ begin
 
     if not Config.BuildConfig.ManualUnitPaths then
       // Always add the base source directory first
-      Result := Result + ' -Fu' + BasePath;
+      Result := Result + ' -Fu' + TUtils.QuotePath(BasePath);
 
     if Config.BuildConfig.ManualUnitPaths then
     begin
@@ -118,7 +118,7 @@ begin
         end;
 
         for UnitPath in UnitPaths do
-          Result := Result + ' -Fu' + UnitPath;
+          Result := Result + ' -Fu' + TUtils.QuotePath(UnitPath);
       finally
         UnitPaths.Free;
       end;
@@ -146,7 +146,7 @@ begin
 
       try
         for UnitPath in UnitPaths do
-          Result := Result + ' -Fu' + UnitPath;
+          Result := Result + ' -Fu' + TUtils.QuotePath(UnitPath);
       finally
         UnitPaths.Free;
       end;
@@ -156,12 +156,12 @@ begin
     for I := 0 to Config.BuildConfig.ResolvedModulePaths.Count - 1 do
     begin
       UnitPath := TUtils.NormalizePath(Config.BuildConfig.ResolvedModulePaths[I]);
-      Result := Result + ' -Fu' + UnitPath;
+      Result := Result + ' -Fu' + TUtils.QuotePath(UnitPath);
     end;
 
     // Add include search paths (-Fi)
     // Always add output directory first (for filtered resource includes like version.inc)
-    Result := Result + ' -Fi' + OutputDir;
+    Result := Result + ' -Fi' + TUtils.QuotePath(OutputDir);
 
     // Check all unit paths (both base and subdirs) for *.inc files
     IncludePaths := TStringList.Create;
@@ -208,7 +208,7 @@ begin
       end;
 
       for IncludePath in IncludePaths do
-        Result := Result + ' -Fi' + IncludePath;
+        Result := Result + ' -Fi' + TUtils.QuotePath(IncludePath);
     finally
       IncludePaths.Free;
     end;

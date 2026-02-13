@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>test-invalid</name>
+  <version>1.0.0</version>
+  <build>
+    <mainSource>Main.pas</mainSource>
+  </build>
+  <dependencies>
+    <dependency>
+      <version>1.0.0</version>
+    </dependency>
+  </dependencies>
+</project>

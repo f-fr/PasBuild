@@ -1,0 +1,29 @@
+= Dependency Management Sample
+
+This sample demonstrates cross-project dependency management in PasBuild.
+
+== Projects
+
+* `string-utils/` - A library project providing string utility functions
+* `greeting-app/` - An application that depends on `string-utils`
+
+== Usage
+
+Step 1: Install the library to the local repository:
+
+[source,shell]
+----
+cd string-utils
+pasbuild install
+----
+
+Step 2: Compile and run the consumer application:
+
+[source,shell]
+----
+cd ../greeting-app
+pasbuild compile
+./target/greeting
+----
+
+The application uses `StringUtils.pas` from the `string-utils` library, which PasBuild resolves automatically from `~/.pasbuild/repository/`.

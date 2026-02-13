@@ -579,6 +579,75 @@ pasbuild compile -v           # Show dependency graph
 
 **For detailed multi-module documentation**, see link:multi-module-tutorial.adoc[Multi-Module Tutorial].
 
+=== Dependency Management
+
+PasBuild supports cross-project dependency management through a local repository. This allows one project to use compiled units from another project without manually managing `-Fu` paths.
+
+**Workflow:**
+
+1. Build and install a library project to the local repository
+2. Declare the dependency in the consumer project's `project.xml`
+3. Compile the consumer project -- dependencies are resolved automatically
+
+**Step 1: Install the library**
+
+[source,shell]
+----
+cd my-library
+pasbuild install
+
+# [INFO] Installed my-library:1.0.0 [x86_64-linux-3.2.2]
+# [INFO]   -> /home/user/.pasbuild/repository/my-library/1.0.0/x86_64-linux-3.2.2
+----
+
+**Step 2: Declare the dependency**
+
+In the consumer project's `project.xml`:
+
+[source,xml]
+----
+<project>
+  <name>my-app</name>
+  <version>1.0.0</version>
+  <build>
+    <mainSource>MyApp.pas</mainSource>
+  </build>
+  <dependencies>
+    <dependency>
+      <name>my-library</name>
+      <version>1.0.0</version>
+    </dependency>
+  </dependencies>
+</project>
+----
+
+**Step 3: Compile the consumer**
+
+[source,shell]
+----
+cd my-app
+pasbuild compile
+
+# [INFO] Resolving 1 external dependency...
+# [INFO] Dependencies resolved successfully
+# [INFO] Compiling project...
+# [INFO] Build successful
+----
+
+PasBuild automatically adds the installed library's units to the compiler's `-Fu` search path. Transitive dependencies (dependencies of dependencies) are resolved automatically through metadata stored in the repository.
+
+**Multi-module install:**
+
+For aggregator projects, `pasbuild install` installs all non-aggregator modules:
+
+[source,shell]
+----
+cd fpgui
+pasbuild install    # Installs framework module, then uidesigner module
+----
+
+**For detailed dependency management documentation**, see link:dependency-management-design.adoc[Dependency Management Design].
+
 === Platform-Specific Code with Conditional Paths
 
 For cross-platform projects with platform-specific directories, use conditional unit paths.
@@ -1084,6 +1153,42 @@ pasbuild source-package
 * Users without Git access
 * Archival purposes
 
+=== install
+
+Installs compiled units to the local repository (`~/.pasbuild/repository/`).
+
+[source,shell]
+----
+pasbuild install
+----
+
+**Dependencies:** Automatically runs `process-resources` -> `compile` -> `install`
+
+**What it does:**
+
+1. Compiles the project (if not already compiled)
+2. Detects the FPC target triplet (e.g., `x86_64-linux-3.2.2`)
+3. Creates the repository directory structure
+4. Copies all `.ppu` and `.o` files from `target/units/` to the repository
+5. Generates `metadata.xml` with artifact identity and dependency information
+
+**Example:**
+
+[source,shell]
+----
+pasbuild install
+
+# Output:
+# [INFO] Executing goal: install
+# [INFO] Installing to local repository...
+# [INFO] Found 5 unit(s) and 6 object file(s)
+# [INFO] Copied unit files to repository
+# [INFO] Installed my-library:1.0.0 [x86_64-linux-3.2.2]
+# [INFO]   -> /home/user/.pasbuild/repository/my-library/1.0.0/x86_64-linux-3.2.2
+----
+
+**Note:** For multi-module aggregator projects, `install` runs on each non-aggregator module in dependency order.
+
 === init
 
 Bootstraps a new project.
@@ -1224,6 +1329,14 @@ If `project.xml` already exists, returns error: `"Project already initialized"`
     </resources>
   </test>
 
+  <!-- External Dependencies (from local repository) -->
+  <dependencies>
+    <dependency>
+      <name>fpgui-framework</name>
+      <version>1.0.0</version>
+    </dependency>
+  </dependencies>
+
   <!-- Build Profiles -->
   <profiles>
     <profile>
@@ -1337,6 +1450,7 @@ pasbuild test-compile             # Compile tests (runs: compile → process-tes
 pasbuild test                     # Run tests (runs: compile → process-test-resources → test-compile → test)
 pasbuild package                  # Create release archive
 pasbuild source-package           # Create source archive
+pasbuild install                  # Install to local repository (~/.pasbuild/repository/)
 pasbuild init                     # Bootstrap new project
 ----
 

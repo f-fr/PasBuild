@@ -19,7 +19,6 @@ PasBuild is a build automation tool for Free Pascal projects, inspired by Apache
 
 === Non-Goals (MVP)
 
-* Dependency management (no artifact repository)
 * Incremental compilation (rebuild everything)
 * IDE integration (CLI-only)
 * Custom plugin system
@@ -199,7 +198,7 @@ MyProject/
 
 * Industry standard
 * Clear upgrade impact (`MAJOR` = breaking changes)
-* Enables future dependency management
+* Enables dependency management and version resolution
 
 
 == Build System Architecture
@@ -263,6 +262,10 @@ PasBuild follows Maven's lifecycle model where goals can have dependencies on ot
 |`package`
 |clean, compile
 |clean → compile → package
+
+|`install`
+|process-resources, compile
+|process-resources → compile → install
 
 |`init`
 |None
@@ -944,9 +947,119 @@ Pre-release versions are included in package filenames:
 * `myapp-1.0.0-beta.zip`
 * `myapp-2.0.0-SNAPSHOT-src.zip`
 
+== Dependency Management
+
+PasBuild supports Maven-style dependency management through a local repository. Projects can declare external dependencies in `project.xml`, and PasBuild resolves them at compile time by locating pre-compiled units in the local repository.
+
+=== Local Repository
+
+Installed artifacts are stored under `~/.pasbuild/repository/` with the following structure:
+
+[source]
+----
+~/.pasbuild/repository/
+  <name>/
+    <version>/
+      <cpu>-<os>-<fpcVersion>/     # Target triplet
+        units/                      # Compiled .ppu and .o files
+        metadata.xml                # Artifact metadata and dependency list
+----
+
+The target triplet (e.g., `x86_64-linux-3.2.2`) ensures compiled units are only used with a matching FPC version and target architecture. This prevents `.ppu` version mismatch errors.
+
+Paths containing spaces in the user's home directory (e.g., `C:\Users\John Smith\`) are handled correctly through path quoting.
+
+=== Install Goal
+
+The `install` goal compiles the project and copies compiled units to the local repository:
+
+[source,bash]
+----
+pasbuild install
+----
+
+This executes: `process-resources` -> `compile` -> `install`. The install step:
+
+1. Detects the target triplet via `fpc -iTP`, `fpc -iTO`, `fpc -iV`
+2. Creates the repository directory structure
+3. Copies all `.ppu` and `.o` files from `target/units/` to the repository
+4. Generates `metadata.xml` with artifact identity, build info, and dependency list
+
+For multi-module aggregator projects, `install` runs on each non-aggregator module in dependency order.
+
+=== Declaring Dependencies
+
+Consumer projects declare external dependencies in `project.xml`:
+
+[source,xml]
+----
+<project>
+  <name>my-app</name>
+  <version>1.0.0</version>
+  <build>
+    <mainSource>MyApp.pas</mainSource>
+  </build>
+  <dependencies>
+    <dependency>
+      <name>fpgui-framework</name>
+      <version>1.0.0</version>
+    </dependency>
+  </dependencies>
+</project>
+----
+
+Validation rules:
+
+* Each `<dependency>` requires both `<name>` and `<version>`
+* Version must be valid semantic version format
+* Duplicate dependency names are rejected
+
+=== Dependency Resolution
+
+When a project with `<dependencies>` is compiled, PasBuild resolves each dependency before invoking the compiler:
+
+1. Detect the current target triplet
+2. For each declared dependency, locate the artifact in the local repository
+3. Read `metadata.xml` to discover transitive dependencies
+4. Recursively resolve transitive dependencies (with cycle detection)
+5. Add all resolved unit paths to the compiler's `-Fu` search paths
+
+If a dependency is not found, PasBuild reports a descriptive error indicating whether the artifact is missing entirely or available for a different target.
+
+=== Metadata Format
+
+Each installed artifact includes a `metadata.xml` file:
+
+[source,xml]
+----
+<artifact>
+  <name>fpgui-framework</name>
+  <version>1.0.0</version>
+  <packaging>library</packaging>
+  <build>
+    <fpcVersion>3.2.2</fpcVersion>
+    <targetCPU>x86_64</targetCPU>
+    <targetOS>linux</targetOS>
+    <timestamp>2026-02-13T00:24:26</timestamp>
+  </build>
+  <dependencies>
+    <dependency>
+      <name>some-base-lib</name>
+      <version>1.0.0</version>
+    </dependency>
+  </dependencies>
+</artifact>
+----
+
+The `<dependencies>` section enables transitive dependency resolution. When a consumer depends on `fpgui-framework`, PasBuild automatically resolves `some-base-lib` as well.
+
+
 == Future Enhancements
 
-Currently all major features are implemented. Future enhancements will be driven by user feedback and community requests.
+Future enhancements will be driven by user feedback and community requests. Potential areas include:
+
+* Remote artifact repository (similar to Maven Central)
+* Dependency version range resolution
 
 
 == Implementation Phases
