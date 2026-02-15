@@ -19,10 +19,11 @@ uses
 
 const
   PASBUILD_VERSION = {$I version.inc};
+  PASBUILD_BUILD_DATE = {$I %DATE%};
 
 type
   { Valid build goals }
-  TBuildGoal = (bgUnknown, bgClean, bgProcessResources, bgCompile, bgProcessTestResources, bgTestCompile, bgTest, bgPackage, bgSourcePackage, bgInstall, bgInit, bgHelp, bgVersion);
+  TBuildGoal = (bgUnknown, bgClean, bgProcessResources, bgCompile, bgProcessTestResources, bgTestCompile, bgTest, bgPackage, bgSourcePackage, bgInstall, bgInit, bgHelp, bgVersion, bgLicense);
 
   { Parsed command-line arguments }
   TCommandLineArgs = record
@@ -33,6 +34,7 @@ type
     FPCExecutable: string;  // Custom FPC compiler path (empty = default 'fpc')
     ShowHelp: Boolean;
     ShowVersion: Boolean;
+    ShowLicense: Boolean;
     Verbose: Boolean;
     ErrorMessage: string;
   end;
@@ -46,6 +48,7 @@ type
     class function ParseArguments: TCommandLineArgs;
     class procedure ShowHelp;
     class procedure ShowVersion;
+    class procedure ShowLicense;
   end;
 
 implementation
@@ -85,6 +88,8 @@ begin
     Result := bgHelp
   else if GoalLower = '--version' then
     Result := bgVersion
+  else if GoalLower = '--license' then
+    Result := bgLicense
   else
     Result := bgUnknown;
 end;
@@ -104,6 +109,7 @@ begin
     bgInit: Result := 'init';
     bgHelp: Result := '--help';
     bgVersion: Result := '--version';
+    bgLicense: Result := '--license';
     else Result := 'unknown';
   end;
 end;
@@ -123,6 +129,7 @@ begin
   Result.FPCExecutable := '';  // Default: use 'fpc' from PATH
   Result.ShowHelp := False;
   Result.ShowVersion := False;
+  Result.ShowLicense := False;
   Result.Verbose := False;
   Result.ErrorMessage := '';
 
@@ -160,6 +167,12 @@ begin
   if Result.Goal = bgVersion then
   begin
     Result.ShowVersion := True;
+    Exit;
+  end;
+
+  if Result.Goal = bgLicense then
+  begin
+    Result.ShowLicense := True;
     Exit;
   end;
 
@@ -262,6 +275,7 @@ begin
   WriteLn('  -v, --verbose                Show full compiler output');
   WriteLn('  -h, --help                   Show this help message');
   WriteLn('  --version                    Show version information');
+  WriteLn('  --license                    Show license information');
   WriteLn;
   WriteLn('Examples:');
   WriteLn('  pasbuild compile                      # Build with default settings');
@@ -283,11 +297,46 @@ class procedure TArgumentParser.ShowVersion;
 begin
   WriteLn('PasBuild version ', PASBUILD_VERSION);
   WriteLn('Build automation tool for Free Pascal projects');
+  WriteLn('Built: ', PASBUILD_BUILD_DATE);
+  WriteLn('Author: Graeme Geldenhuys');
   WriteLn;
 
   // Show which FPC is being used and its version
   WriteLn('FPC executable: ', TUtils.GetFPCExecutable);
   WriteLn('FPC version detected: ', TUtils.DetectFPCVersion());
+  WriteLn;
+end;
+
+class procedure TArgumentParser.ShowLicense;
+begin
+  WriteLn('BSD 3-Clause License');
+  WriteLn;
+  WriteLn('Copyright (c) 2025 - Graeme Geldenhuys <graemeg@gmail.com>');
+  WriteLn;
+  WriteLn('Redistribution and use in source and binary forms, with or without');
+  WriteLn('modification, are permitted provided that the following conditions are met:');
+  WriteLn;
+  WriteLn('1. Redistributions of source code must retain the above copyright notice, this');
+  WriteLn('   list of conditions and the following disclaimer.');
+  WriteLn;
+  WriteLn('2. Redistributions in binary form must reproduce the above copyright notice,');
+  WriteLn('   this list of conditions and the following disclaimer in the documentation');
+  WriteLn('   and/or other materials provided with the distribution.');
+  WriteLn;
+  WriteLn('3. Neither the name of the copyright holder nor the names of its');
+  WriteLn('   contributors may be used to endorse or promote products derived from');
+  WriteLn('   this software without specific prior written permission.');
+  WriteLn;
+  WriteLn('THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"');
+  WriteLn('AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE');
+  WriteLn('IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE');
+  WriteLn('DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE');
+  WriteLn('FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL');
+  WriteLn('DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR');
+  WriteLn('SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER');
+  WriteLn('CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,');
+  WriteLn('OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE');
+  WriteLn('OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.');
   WriteLn;
 end;
 

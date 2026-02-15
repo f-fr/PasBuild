@@ -49,9 +49,7 @@ var
   ProjectDir, OriginalDir: string;
 
 begin
-  WriteLn('[INFO] PasBuild ', PASBUILD_VERSION);
-  WriteLn('[INFO] Copyright (c) 2025 by Graeme Geldenhuys');
-  WriteLn;
+  WriteLn('[INFO] PasBuild ', PASBUILD_VERSION, ' — Born ', PASBUILD_BUILD_DATE, '. Raised by Graeme Geldenhuys.');
 
   // Parse command line arguments
   Args := TArgumentParser.ParseArguments;
@@ -88,6 +86,14 @@ begin
   if Args.ShowVersion then
   begin
     TArgumentParser.ShowVersion;
+    ExitCode := 0;
+    Exit;
+  end;
+
+  // Handle license
+  if Args.ShowLicense then
+  begin
+    TArgumentParser.ShowLicense;
     ExitCode := 0;
     Exit;
   end;
