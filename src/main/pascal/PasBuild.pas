@@ -46,6 +46,7 @@ var
   Registry: TModuleRegistry;
   Resolver: TDependencyResolver;
   AggregatorDir: string;
+  ProjectDir, OriginalDir: string;
 
 begin
   WriteLn('[INFO] PasBuild ', PASBUILD_VERSION);
@@ -77,6 +78,28 @@ begin
     TArgumentParser.ShowVersion;
     ExitCode := 0;
     Exit;
+  end;
+
+  // Resolve project file path and change to its directory.
+  // This allows running pasbuild from any directory using -f flag,
+  // e.g.: pasbuild compile -f ../../../project.xml
+  if Args.Goal <> bgInit then
+  begin
+    OriginalDir := GetCurrentDir;
+    ProjectDir := ExtractFilePath(ExpandFileName(Args.ProjectFile));
+    if ProjectDir <> '' then
+    begin
+      if not SetCurrentDir(ProjectDir) then
+      begin
+        TUtils.LogError('Cannot change to project directory: ' + ProjectDir);
+        ExitCode := 1;
+        Exit;
+      end;
+      if not SameText(ExcludeTrailingPathDelimiter(ProjectDir),
+                      ExcludeTrailingPathDelimiter(OriginalDir)) then
+        TUtils.LogInfo('Changing to project directory: ' + ExcludeTrailingPathDelimiter(ProjectDir));
+      Args.ProjectFile := ExtractFileName(Args.ProjectFile);
+    end;
   end;
 
   // Load project configuration (skip for init goal)

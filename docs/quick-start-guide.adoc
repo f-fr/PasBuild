@@ -510,10 +510,37 @@ pasbuild compile --file myproject.xml
 
 **Use cases:**
 
+* **Building from a subdirectory**: Run PasBuild from anywhere by pointing to the project file
 * **Multiple build configurations**: Maintain separate project files for different deployment targets
 * **Testing configurations**: Test changes without modifying main project.xml
-* **Legacy support**: Support older project file versions
 * **Build system integration**: Use dynamically generated project files
+
+**Example: Building from a subdirectory**
+
+When editing source files deep in the project tree, you can build without navigating back to the project root. PasBuild automatically changes to the directory containing the project file, so all relative paths in `project.xml` resolve correctly — just like Maven's `-f` flag.
+
+[source,shell]
+----
+# You're editing files in src/main/pascal/
+cd src/main/pascal
+
+# Build from here using a relative path to project.xml
+pasbuild compile -f ../../../project.xml
+
+# Output:
+# [INFO] Changing to project directory: /home/user/myproject
+# [INFO] Executing goal: compile
+# [INFO] Build successful
+----
+
+An absolute path works too:
+
+[source,shell]
+----
+# Build from anywhere on the system
+cd /tmp
+pasbuild compile -f /home/user/myproject/project.xml
+----
 
 **Example: Multiple configurations**
 
@@ -541,7 +568,7 @@ cp project.xml project-test.xml
 pasbuild compile -f project-test.xml
 ----
 
-**Note:** The file path can be relative or absolute. Error handling provides clear messages if the file is not found.
+**Note:** The file path can be relative or absolute. When a path to a different directory is provided, PasBuild changes to that directory before executing, ensuring all paths in `project.xml` resolve correctly.
 
 === Multi-Module Projects
 
@@ -1486,6 +1513,10 @@ pasbuild compile -v
 
 # Use alternate project file
 pasbuild compile -f custom.xml
+
+# Build from a subdirectory using relative path
+cd src/main/pascal
+pasbuild compile -f ../../../project.xml
 
 # Create source distribution
 pasbuild source-package

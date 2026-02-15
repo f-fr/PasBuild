@@ -242,7 +242,8 @@ begin
   WriteLn('  pasbuild compile -p release           # Build with release profile');
   WriteLn('  pasbuild compile -p base,debug        # Build with base + debug profiles');
   WriteLn('  pasbuild compile -v                   # Build with verbose FPC output');
-  WriteLn('  pasbuild compile -f custom.xml        # Use custom project file');
+  WriteLn('  pasbuild compile -f custom.xml        # Use alternate project file');
+  WriteLn('  pasbuild compile -f ../../../project.xml  # Build from a subdirectory');
   WriteLn('  pasbuild compile -m mymodule          # Build specific module (multi-module)');
   WriteLn('  pasbuild test                         # Run tests');
   WriteLn('  pasbuild package                      # Create release archive');
