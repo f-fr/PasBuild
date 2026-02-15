@@ -30,6 +30,7 @@ type
     ProfileIds: TStringList;  // Changed from ProfileId to support multiple profiles
     ProjectFile: string;  // Custom project file path (default: project.xml)
     SelectedModule: string;  // Module name for multi-module builds (empty = all modules)
+    FPCExecutable: string;  // Custom FPC compiler path (empty = default 'fpc')
     ShowHelp: Boolean;
     ShowVersion: Boolean;
     Verbose: Boolean;
@@ -119,10 +120,24 @@ begin
   Result.ProfileIds.StrictDelimiter := True;
   Result.ProjectFile := 'project.xml';  // Default
   Result.SelectedModule := '';  // Default: all modules
+  Result.FPCExecutable := '';  // Default: use 'fpc' from PATH
   Result.ShowHelp := False;
   Result.ShowVersion := False;
   Result.Verbose := False;
   Result.ErrorMessage := '';
+
+  // Pre-pass: extract --fpc flag from anywhere in args
+  I := 1;
+  while I <= ParamCount do
+  begin
+    if ParamStr(I) = '--fpc' then
+    begin
+      if I < ParamCount then
+        Result.FPCExecutable := ParamStr(I + 1);
+      Break;
+    end;
+    Inc(I);
+  end;
 
   // No arguments provided
   if ParamCount = 0 then
@@ -201,6 +216,17 @@ begin
       end;
       Result.SelectedModule := ParamStr(I);
     end
+    // FPC executable flag
+    else if (Arg = '--fpc') then
+    begin
+      Inc(I);
+      if I > ParamCount then
+      begin
+        Result.ErrorMessage := 'Option ' + Arg + ' requires a path to the FPC executable';
+        Exit;
+      end;
+      Result.FPCExecutable := ParamStr(I);
+    end
     else
     begin
       Result.ErrorMessage := 'Unknown option: ' + Arg;
@@ -232,6 +258,7 @@ begin
   WriteLn('  --profile <id>               Activate build profile (same as -p)');
   WriteLn('  -m <module>, --module        Build specific module in multi-module project');
   WriteLn('  -f <file>, --file <file>     Use alternate project file (default: project.xml)');
+  WriteLn('  --fpc <path>                 Use custom FPC executable (default: fpc)');
   WriteLn('  -v, --verbose                Show full compiler output');
   WriteLn('  -h, --help                   Show this help message');
   WriteLn('  --version                    Show version information');
@@ -245,6 +272,7 @@ begin
   WriteLn('  pasbuild compile -f custom.xml        # Use alternate project file');
   WriteLn('  pasbuild compile -f ../../../project.xml  # Build from a subdirectory');
   WriteLn('  pasbuild compile -m mymodule          # Build specific module (multi-module)');
+  WriteLn('  pasbuild compile --fpc /opt/fpc-3.3.1/bin/fpc  # Use custom FPC');
   WriteLn('  pasbuild test                         # Run tests');
   WriteLn('  pasbuild package                      # Create release archive');
   WriteLn('  pasbuild init                         # Create new project');
@@ -257,8 +285,9 @@ begin
   WriteLn('Build automation tool for Free Pascal projects');
   WriteLn;
 
-  // Try to detect FPC version
-  WriteLn('FPC version detected (fpc -iV): ', TUtils.DetectFPCVersion());
+  // Show which FPC is being used and its version
+  WriteLn('FPC executable: ', TUtils.GetFPCExecutable);
+  WriteLn('FPC version detected: ', TUtils.DetectFPCVersion());
   WriteLn;
 end;
 

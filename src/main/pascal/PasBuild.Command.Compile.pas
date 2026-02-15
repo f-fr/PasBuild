@@ -55,7 +55,7 @@ var
   I: Integer;
 begin
   // Base command with default flags
-  Result := 'fpc -Mobjfpc -O1';
+  Result := TUtils.GetFPCExecutable + ' -Mobjfpc -O1';
 
   // Source file path (passed as parameter)
   Result := Result + ' ' + ASourcePath;

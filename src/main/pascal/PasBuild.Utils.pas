@@ -21,7 +21,12 @@ uses
 type
   { Utility functions for file operations and process execution }
   TUtils = class
+  private
+    class var FFPCExecutable: string;
   public
+    { FPC executable configuration }
+    class procedure SetFPCExecutable(const APath: string);
+    class function GetFPCExecutable: string;
     { Path normalization }
     class function NormalizePath(const APath: string): string;
 
@@ -72,6 +77,19 @@ implementation
 procedure RecursiveScanDirs(const ADir: string; AList: TStringList); forward;
 
 { TUtils }
+
+class procedure TUtils.SetFPCExecutable(const APath: string);
+begin
+  FFPCExecutable := APath;
+end;
+
+class function TUtils.GetFPCExecutable: string;
+begin
+  if FFPCExecutable <> '' then
+    Result := FFPCExecutable
+  else
+    Result := 'fpc';
+end;
 
 class function TUtils.NormalizePath(const APath: string): string;
 var
@@ -390,7 +408,7 @@ var
 begin
   Result := 'Unknown';
 
-  ExitCode := ExecuteProcessWithCapture('fpc -iV', Output);
+  ExitCode := ExecuteProcessWithCapture(GetFPCExecutable + ' -iV', Output);
   if ExitCode = 0 then
     Result := Trim(Output)
   else
@@ -404,7 +422,7 @@ var
 begin
   Result := 'Unknown';
 
-  ExitCode := ExecuteProcessWithCapture('fpc -iTP', Output);
+  ExitCode := ExecuteProcessWithCapture(GetFPCExecutable + ' -iTP', Output);
   if ExitCode = 0 then
     Result := Trim(Output);
 end;
@@ -416,7 +434,7 @@ var
 begin
   Result := 'Unknown';
 
-  ExitCode := ExecuteProcessWithCapture('fpc -iTO', Output);
+  ExitCode := ExecuteProcessWithCapture(GetFPCExecutable + ' -iTO', Output);
   if ExitCode = 0 then
     Result := Trim(Output);
 end;
@@ -431,7 +449,7 @@ var
   ExitCode: Integer;
   Output: string;
 begin
-  ExitCode := ExecuteProcessWithCapture('fpc -iV', Output);
+  ExitCode := ExecuteProcessWithCapture(GetFPCExecutable + ' -iV', Output);
   Result := (ExitCode = 0);
 end;
 

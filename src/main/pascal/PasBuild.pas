@@ -56,6 +56,18 @@ begin
   // Parse command line arguments
   Args := TArgumentParser.ParseArguments;
 
+  // Resolve custom FPC executable (CLI flag > env var > default 'fpc')
+  if Args.FPCExecutable <> '' then
+  begin
+    TUtils.SetFPCExecutable(Args.FPCExecutable);
+    TUtils.LogInfo('Using custom FPC: ' + Args.FPCExecutable);
+  end
+  else if GetEnvironmentVariable('PASBUILD_FPC') <> '' then
+  begin
+    TUtils.SetFPCExecutable(GetEnvironmentVariable('PASBUILD_FPC'));
+    TUtils.LogInfo('Using FPC from PASBUILD_FPC: ' + GetEnvironmentVariable('PASBUILD_FPC'));
+  end;
+
   // Handle help
   if Args.ShowHelp then
   begin

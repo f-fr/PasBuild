@@ -570,6 +570,57 @@ pasbuild compile -f project-test.xml
 
 **Note:** The file path can be relative or absolute. When a path to a different directory is provided, PasBuild changes to that directory before executing, ensuring all paths in `project.xml` resolve correctly.
 
+=== Custom FPC Executable
+
+By default, PasBuild uses the `fpc` command from your PATH. You can override this to use a specific FPC binary, which is useful for side-by-side compiler versions, patched compilers, or CI environments.
+
+**Precedence (highest to lowest):**
+
+1. CLI flag: `--fpc <path>`
+2. Environment variable: `PASBUILD_FPC`
+3. Default: `fpc` (PATH resolution)
+
+**Using the --fpc flag:**
+
+[source,shell]
+----
+# Use an explicit path to a specific FPC version
+pasbuild compile --fpc /opt/fpc-3.3.1/bin/fpc
+
+# Use a custom-named FPC binary on PATH
+pasbuild compile --fpc fpc-ootb
+
+# Check version with custom FPC
+pasbuild --version --fpc /opt/fpc-3.3.1/bin/fpc
+----
+
+**Using the PASBUILD_FPC environment variable:**
+
+[source,shell]
+----
+# Set for a single command
+PASBUILD_FPC=/opt/fpc-3.3.1/bin/fpc pasbuild compile
+
+# Set for the entire shell session
+export PASBUILD_FPC=/opt/fpc-3.3.1/bin/fpc
+pasbuild compile
+pasbuild test
+
+# CI environment example
+export PASBUILD_FPC=/usr/local/fpc-3.2.2/bin/fpc
+pasbuild compile -p release
+pasbuild package
+----
+
+**Use cases:**
+
+* Testing against multiple FPC versions (e.g., stable vs trunk)
+* CI/CD pipelines with non-standard FPC installation paths
+* Using patched or custom-built compilers
+* Cross-compilation with platform-specific FPC binaries
+
+**Note:** The `--fpc` flag always takes precedence over `PASBUILD_FPC`. When a custom FPC is configured, it is used for all operations including version detection, target CPU/OS detection, and compilation.
+
 === Multi-Module Projects
 
 For large projects with multiple components, PasBuild supports Maven-style multi-module projects with:
@@ -1488,6 +1539,7 @@ pasbuild init                     # Bootstrap new project
 -p <profile[,profile...]>         # Activate build profile(s)
 --profile <profile-id>            # Activate build profile (long form)
 -f <file>, --file <file>          # Use alternate project file (default: project.xml)
+--fpc <path>                      # Use custom FPC executable (or set PASBUILD_FPC env var)
 -v, --verbose                     # Show full compiler output
 -h, --help                        # Show help message
 --version                         # Show version information

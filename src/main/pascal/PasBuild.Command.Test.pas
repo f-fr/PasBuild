@@ -134,7 +134,7 @@ var
   TestBaseDir: string;
 begin
   // Base command with default flags
-  Result := 'fpc -Mobjfpc -O1';
+  Result := TUtils.GetFPCExecutable + ' -Mobjfpc -O1';
 
   // Test source file path
   Result := Result + ' ' + ATestSourcePath;
