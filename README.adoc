@@ -181,7 +181,7 @@ Copyright (c) 2025 Graeme Geldenhuys
 
 This project is licensed under the BSD 3-Clause License - see the link:LICENSE[LICENSE] file for details.
 
-All source files in this project are covered by this license unless otherwise noted.
+All source files and documentation in this project are covered by this license unless otherwise noted.
 
 == Contributing
 
