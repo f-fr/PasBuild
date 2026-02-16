@@ -267,7 +267,7 @@ begin
         AProcess.WaitOnExit;
       end;
 
-      Result := AProcess.ExitStatus;
+      Result := AProcess.ExitCode;
     except
       on E: Exception do
       begin
@@ -305,7 +305,7 @@ begin
       AProcess.Execute;
       OutputList.LoadFromStream(AProcess.Output);
       AOutput := OutputList.Text;
-      Result := AProcess.ExitStatus;
+      Result := AProcess.ExitCode;
     except
       on E: Exception do
       begin
@@ -386,7 +386,7 @@ begin
         end;
       end;
 
-      Result := AProcess.ExitStatus;
+      Result := AProcess.ExitCode;
     except
       on E: Exception do
       begin
