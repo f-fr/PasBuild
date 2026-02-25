@@ -34,8 +34,10 @@ type
     FModulesBuilt: Integer;
     FModulesFailed: Integer;
     FSelectedModule: string;  // Empty = all modules, otherwise build only this module + dependencies
+    FResults: TList;          { Per-module build results for reactor summary }
     procedure DisplayDependencyGraph;
     procedure FilterBuildOrderForSelectedModule(var BuildOrder: TList);
+    procedure PrintReactorSummary(ATotalSecs: Double);
   protected
     function GetName: string; override;
   public
@@ -55,6 +57,16 @@ type
 
 implementation
 
+type
+  TModuleStatus = (msSuccess, msFailure, msSkipped);
+
+  TModuleResult = record
+    Name: string;
+    Status: TModuleStatus;
+    ElapsedSecs: Double;
+  end;
+  PModuleResult = ^TModuleResult;
+
 { TReactorCommand }
 
 constructor TReactorCommand.Create(AConfig: TProjectConfig; AProfileIds: TStringList;
@@ -66,10 +78,16 @@ begin
   FSelectedModule := ASelectedModule;
   FModulesBuilt := 0;
   FModulesFailed := 0;
+  FResults := TList.Create;
 end;
 
 destructor TReactorCommand.Destroy;
+var
+  I: Integer;
 begin
+  for I := 0 to FResults.Count - 1 do
+    Dispose(PModuleResult(FResults[I]));
+  FResults.Free;
   { Registry is not owned by this command - it's passed in }
   inherited Destroy;
 end;
@@ -186,6 +204,10 @@ var
   ModuleExecutor: TCommandExecutor;
   CurrentDir: string;
   OriginalDir: string;
+  OverallStartTime: TDateTime;
+  ModuleStartTime: TDateTime;
+  ElapsedSecs: Double;
+  P: PModuleResult;
 begin
   Result := 0;
   FModulesBuilt := 0;
@@ -209,10 +231,19 @@ begin
       Exit(1);
     end;
 
+    { Print reactor build order }
+    TUtils.LogSeparator;
     if FSelectedModule <> '' then
-      TUtils.LogInfo('Building ' + IntToStr(ModuleCount) + ' modules (selected: ' + FSelectedModule + ')')
+      TUtils.LogInfo('Reactor Build Order (selected: ' + FSelectedModule + '):')
     else
-      TUtils.LogInfo('Building ' + IntToStr(ModuleCount) + ' modules in dependency order');
+      TUtils.LogInfo('Reactor Build Order:');
+    TUtils.LogInfo('');
+    for I := 0 to BuildOrder.Count - 1 do
+    begin
+      Module := TModuleInfo(BuildOrder[I]);
+      TUtils.LogInfo(Module.Name);
+    end;
+    TUtils.LogSeparator;
 
     { Display dependency graph in verbose mode }
     if FVerbose then
@@ -221,15 +252,32 @@ begin
     { Save current directory for restoration }
     OriginalDir := GetCurrentDir;
 
+    { Record overall build start time }
+    OverallStartTime := Now;
+
     { Build each module in order }
     for I := 0 to BuildOrder.Count - 1 do
     begin
       Module := TModuleInfo(BuildOrder[I]);
 
+      { Print Maven-style module header }
+      TUtils.LogInfo('');
+      TUtils.LogSeparator;
+      TUtils.LogInfo('Building ' + Module.Name + ' [' + IntToStr(I + 1) + '/' + IntToStr(ModuleCount) + ']');
+      TUtils.LogSeparator;
+
+      { Record module build start time }
+      ModuleStartTime := Now;
+
       { Skip aggregators (pom packaging) }
       if (Module.Config <> nil) and (Module.Config.BuildConfig.ProjectType = ptPom) then
       begin
         TUtils.LogInfo('Skipping aggregator module: ' + Module.Name);
+        P := New(PModuleResult);
+        P^.Name := Module.Name;
+        P^.Status := msSkipped;
+        P^.ElapsedSecs := 0;
+        FResults.Add(P);
         Continue;
       end;
 
@@ -238,11 +286,13 @@ begin
         TUtils.LogError('Module config not loaded: ' + Module.Name);
         Inc(FModulesFailed);
         Result := 1;
+        P := New(PModuleResult);
+        P^.Name := Module.Name;
+        P^.Status := msFailure;
+        P^.ElapsedSecs := 0;
+        FResults.Add(P);
         Continue;
       end;
-
-      { Log module being built }
-      TUtils.LogInfo('Building module ' + IntToStr(I + 1) + '/' + IntToStr(ModuleCount) + ': ' + Module.Name);
 
       { Resolve artifacts for this module (add dependency paths) }
       FRegistry.ResolveArtifacts(Module);
@@ -255,6 +305,11 @@ begin
         TUtils.LogError('Failed to change to module directory: ' + CurrentDir);
         Inc(FModulesFailed);
         Result := 1;
+        P := New(PModuleResult);
+        P^.Name := Module.Name;
+        P^.Status := msFailure;
+        P^.ElapsedSecs := 0;
+        FResults.Add(P);
         Continue;
       end;
 
@@ -288,6 +343,11 @@ begin
             TUtils.LogError('Unsupported goal in reactor: ' + FGoalName);
             Inc(FModulesFailed);
             Result := 1;
+            P := New(PModuleResult);
+            P^.Name := Module.Name;
+            P^.Status := msFailure;
+            P^.ElapsedSecs := 0;
+            FResults.Add(P);
             Continue;
           end;
         end;
@@ -299,14 +359,30 @@ begin
             ModuleCommand.Verbose := FVerbose;
             if ModuleExecutor.Execute(ModuleCommand) = 0 then
             begin
+              ElapsedSecs := (Now - ModuleStartTime) * 86400.0;
               Inc(FModulesBuilt);
-              TUtils.LogInfo('Module build successful: ' + Module.Name);
+              P := New(PModuleResult);
+              P^.Name := Module.Name;
+              P^.Status := msSuccess;
+              P^.ElapsedSecs := ElapsedSecs;
+              FResults.Add(P);
+              TUtils.LogSeparator;
+              TUtils.LogInfo(Format('BUILD SUCCESS [%7.3f s]', [ElapsedSecs]));
+              TUtils.LogSeparator;
             end
             else
             begin
+              ElapsedSecs := (Now - ModuleStartTime) * 86400.0;
               Inc(FModulesFailed);
               Result := 1;
-              TUtils.LogError('Module build failed: ' + Module.Name);
+              P := New(PModuleResult);
+              P^.Name := Module.Name;
+              P^.Status := msFailure;
+              P^.ElapsedSecs := ElapsedSecs;
+              FResults.Add(P);
+              TUtils.LogSeparator;
+              TUtils.LogInfo(Format('BUILD FAILURE [%7.3f s]', [ElapsedSecs]));
+              TUtils.LogSeparator;
               { Stop reactor build on first failure (fail-fast) }
               Break;
             end;
@@ -327,8 +403,8 @@ begin
       { Ignore errors restoring directory }
     end;
 
-    { Summary }
-    TUtils.LogInfo('Reactor build complete: ' + IntToStr(FModulesBuilt) + '/' + IntToStr(ModuleCount) + ' modules built');
+    { Print reactor summary }
+    PrintReactorSummary((Now - OverallStartTime) * 86400.0);
 
     if FModulesFailed > 0 then
       Result := 1;
@@ -336,6 +412,59 @@ begin
   finally
     BuildOrder.Free;
   end;
+end;
+
+procedure TReactorCommand.PrintReactorSummary(ATotalSecs: Double);
+var
+  I: Integer;
+  P: PModuleResult;
+  MaxNameLen, DotCount: Integer;
+  ModuleName, Dots, StatusStr, Line: string;
+begin
+  { Find longest module name for dot alignment }
+  MaxNameLen := 0;
+  for I := 0 to FResults.Count - 1 do
+  begin
+    P := PModuleResult(FResults[I]);
+    if Length(P^.Name) > MaxNameLen then
+      MaxNameLen := Length(P^.Name);
+  end;
+
+  TUtils.LogSeparator;
+  TUtils.LogInfo('Reactor Summary:');
+  TUtils.LogInfo('');
+
+  for I := 0 to FResults.Count - 1 do
+  begin
+    P := PModuleResult(FResults[I]);
+    ModuleName := P^.Name;
+
+    { Pad with dots so all status columns align }
+    DotCount := MaxNameLen - Length(ModuleName) + 4;
+    Dots := StringOfChar('.', DotCount);
+
+    case P^.Status of
+      msSuccess: StatusStr := 'SUCCESS';
+      msFailure: StatusStr := 'FAILURE';
+      msSkipped: StatusStr := 'SKIPPED';
+    end;
+
+    if P^.Status = msSkipped then
+      Line := ModuleName + ' ' + Dots + ' ' + StatusStr
+    else
+      Line := ModuleName + ' ' + Dots + ' ' + StatusStr + Format(' [%7.3f s]', [P^.ElapsedSecs]);
+
+    TUtils.LogInfo(Line);
+  end;
+
+  TUtils.LogSeparator;
+  if FModulesFailed = 0 then
+    TUtils.LogInfo('BUILD SUCCESS')
+  else
+    TUtils.LogInfo('BUILD FAILURE');
+  TUtils.LogSeparator;
+  TUtils.LogInfo(Format('Total time: %.3f s', [ATotalSecs]));
+  TUtils.LogSeparator;
 end;
 
 function TReactorCommand.GetDependencies: TBuildCommandList;

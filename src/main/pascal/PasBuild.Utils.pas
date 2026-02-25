@@ -63,6 +63,7 @@ type
     class procedure LogInfo(const AMessage: string);
     class procedure LogError(const AMessage: string);
     class procedure LogWarning(const AMessage: string);
+    class procedure LogSeparator;
 
     { Build status tracking }
     class function CreateStatusDirectory(const AGoalName: string): string;
@@ -483,6 +484,11 @@ end;
 class procedure TUtils.LogWarning(const AMessage: string);
 begin
   WriteLn('[WARNING] ', AMessage);
+end;
+
+class procedure TUtils.LogSeparator;
+begin
+  WriteLn('[INFO] ', StringOfChar('-', 72));
 end;
 
 class function TUtils.DirectoryContainsIncludeFiles(const ADirectory: string): Boolean;
