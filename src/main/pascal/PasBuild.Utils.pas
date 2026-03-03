@@ -51,6 +51,7 @@ type
     class function DetectTargetCPU: string;
     class function DetectTargetOS: string;
     class function GetTargetTriplet: string;
+    class function GetPackagePlatformSuffix: string;
     class function IsFPCAvailable: Boolean;
 
     { Path utilities }
@@ -443,6 +444,11 @@ end;
 class function TUtils.GetTargetTriplet: string;
 begin
   Result := DetectTargetCPU + '-' + DetectTargetOS + '-' + DetectFPCVersion;
+end;
+
+class function TUtils.GetPackagePlatformSuffix: string;
+begin
+  Result := DetectTargetCPU + '-' + DetectTargetOS;
 end;
 
 class function TUtils.IsFPCAvailable: Boolean;

@@ -303,8 +303,8 @@ PasBuild supports Semantic Versioning 2.0.0 with optional pre-release identifier
 
 The version string is used in package filenames:
 
-* Release: `myapp-1.0.0.zip`, `myapp-1.0.0-src.zip`
-* Pre-release: `myapp-1.0.0-beta.zip`, `myapp-2.0.0-SNAPSHOT-src.zip`
+* Release: `myapp-1.0.0-x86_64-linux.zip`, `myapp-1.0.0-src.zip`
+* Pre-release: `myapp-1.0.0-beta-x86_64-linux.zip`, `myapp-2.0.0-SNAPSHOT-src.zip`
 
 == Building Your Project
 
@@ -1146,7 +1146,7 @@ pasbuild package
 
 **What it creates:**
 
-A ZIP archive at `target/<name>-<version>.zip` containing:
+A ZIP archive at `target/<name>-<version>-<cpu>-<os>.zip` containing:
 
 * Compiled executable
 * `LICENSE` file (if exists)
@@ -1158,7 +1158,7 @@ A ZIP archive at `target/<name>-<version>.zip` containing:
 ----
 pasbuild package
 
-# Creates: target/myapp-1.0.0.zip
+# Creates: target/myapp-1.0.0-x86_64-linux.zip
 # Contains:
 #   myapp (or myapp.exe on Windows)
 #   LICENSE
@@ -1673,7 +1673,7 @@ project-root/
 └── target/                    # Build output (auto-created)
     ├── myapp                  # Executable
     ├── TestRunner             # Test executable
-    ├── myapp-1.0.0.zip        # Package archive
+    ├── myapp-1.0.0-x86_64-linux.zip  # Package archive
     ├── config/                # Copied from src/main/resources/
     │   └── app.conf           # (filtered if enabled)
     ├── images/                # Copied from src/main/resources/

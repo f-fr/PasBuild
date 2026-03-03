@@ -57,6 +57,10 @@ type
     procedure TestDetectTargetOS;
     procedure TestGetTargetTriplet;
     procedure TestTargetTripletFormat;
+    procedure TestGetPackagePlatformSuffixNotEmpty;
+    procedure TestGetPackagePlatformSuffixTwoComponents;
+    procedure TestGetPackagePlatformSuffixNoFPCVersion;
+    procedure TestGetPackagePlatformSuffixMatchesTriplet;
   end;
 
 implementation
@@ -269,6 +273,78 @@ begin
   // Version should match DetectFPCVersion
   AssertEquals('Version component should match DetectFPCVersion',
     TUtils.DetectFPCVersion, Version);
+end;
+
+{ TTestFPCTargetDetection — GetPackagePlatformSuffix }
+
+procedure TTestFPCTargetDetection.TestGetPackagePlatformSuffixNotEmpty;
+var
+  Suffix: string;
+begin
+  if not TUtils.IsFPCAvailable then
+  begin
+    Ignore('FPC not available');
+    Exit;
+  end;
+  Suffix := TUtils.GetPackagePlatformSuffix;
+  AssertTrue('Package platform suffix should not be empty', Suffix <> '');
+end;
+
+procedure TTestFPCTargetDetection.TestGetPackagePlatformSuffixTwoComponents;
+var
+  Suffix: string;
+  DashPos: Integer;
+begin
+  if not TUtils.IsFPCAvailable then
+  begin
+    Ignore('FPC not available');
+    Exit;
+  end;
+  Suffix := TUtils.GetPackagePlatformSuffix;
+  DashPos := Pos('-', Suffix);
+  AssertTrue('Suffix should contain a hyphen separating cpu and os', DashPos > 0);
+  AssertTrue('cpu component should not be empty', DashPos > 1);
+  AssertTrue('os component should not be empty', Length(Suffix) > DashPos);
+  // Exactly one hyphen: no second hyphen after the first
+  AssertEquals('Suffix should have exactly one hyphen (cpu-os, no fpc version)',
+    0, Pos('-', Copy(Suffix, DashPos + 1, MaxInt)));
+end;
+
+procedure TTestFPCTargetDetection.TestGetPackagePlatformSuffixNoFPCVersion;
+var
+  Suffix, FPCVersion: string;
+begin
+  if not TUtils.IsFPCAvailable then
+  begin
+    Ignore('FPC not available');
+    Exit;
+  end;
+  Suffix := TUtils.GetPackagePlatformSuffix;
+  FPCVersion := TUtils.DetectFPCVersion;
+  AssertEquals('Package suffix must not contain the FPC version',
+    0, Pos(FPCVersion, Suffix));
+end;
+
+procedure TTestFPCTargetDetection.TestGetPackagePlatformSuffixMatchesTriplet;
+var
+  Suffix, Triplet, CPU, OS: string;
+  FirstDash: Integer;
+begin
+  if not TUtils.IsFPCAvailable then
+  begin
+    Ignore('FPC not available');
+    Exit;
+  end;
+  Suffix := TUtils.GetPackagePlatformSuffix;
+  Triplet := TUtils.GetTargetTriplet;
+
+  // Extract cpu and os from triplet (format: cpu-os-fpcversion)
+  FirstDash := Pos('-', Triplet);
+  CPU := Copy(Triplet, 1, FirstDash - 1);
+  OS  := Copy(Triplet, FirstDash + 1, Pos('-', Copy(Triplet, FirstDash + 1, MaxInt)) - 1);
+
+  AssertEquals('Package suffix should equal cpu-os from the full triplet',
+    CPU + '-' + OS, Suffix);
 end;
 
 initialization

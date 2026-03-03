@@ -62,15 +62,20 @@ function TPackageCommand.GetArchiveFileName: string;
 var
   BaseName, OutputDir: string;
 begin
-  // Archive name: target/<executableName>-<version>.zip
-  // Following Maven convention: all build artifacts go in target/
+  // Archive name: target/<executableName>-<version>-<cpu>-<os>.zip
+  // The platform suffix (cpu-os) allows co-existing release archives for
+  // different platforms (linux, windows, darwin) without name collisions.
+  // The FPC version is intentionally omitted — end users only care about
+  // CPU and OS, not which compiler version produced the binary.
   OutputDir := TUtils.NormalizePath(Config.BuildConfig.OutputDirectory);
 
   BaseName := Config.BuildConfig.ExecutableName;
   if BaseName = '' then
     BaseName := 'app';
 
-  Result := OutputDir + DirectorySeparator + BaseName + '-' + Config.Version + '.zip';
+  Result := OutputDir + DirectorySeparator +
+            BaseName + '-' + Config.Version + '-' +
+            TUtils.GetPackagePlatformSuffix + '.zip';
 end;
 
 function TPackageCommand.FindFileWithVariants(const ABaseName: string): string;
