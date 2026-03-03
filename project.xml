@@ -4,7 +4,7 @@
   <!-- This project builds itself! -->
 
   <name>PasBuild</name>
-  <version>1.5.0</version>
+  <version>1.6.0-dev</version>
   <author>Graeme Geldenhuys</author>
   <license>BSD-3-Clause</license>
 
@@ -64,6 +64,7 @@
         <option>-O3</option>
         <option>-CX</option>
         <option>-XX</option>
+        <option>-Xs</option>
       </compilerOptions>
     </profile>
   </profiles>
