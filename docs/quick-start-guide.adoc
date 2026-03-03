@@ -652,7 +652,8 @@ my-framework/                      # Aggregator (packaging=pom)
 cd my-framework
 pasbuild compile              # Build all modules in dependency order
 pasbuild compile -m demo      # Build only demo (and its dependencies)
-pasbuild compile -v           # Show dependency graph
+pasbuild dependency-tree      # Show dependency graph without compiling
+pasbuild dependency-tree -m demo  # Show only demo's dependencies
 ----
 
 **For detailed multi-module documentation**, see link:multi-module-tutorial.adoc[Multi-Module Tutorial].
@@ -1266,6 +1267,65 @@ pasbuild install
 ----
 
 **Note:** For multi-module aggregator projects, `install` runs on each non-aggregator module in dependency order.
+
+=== dependency-tree
+
+Displays the dependency graph of a project without invoking the compiler.
+
+[source,shell]
+----
+pasbuild dependency-tree           # All modules (or external deps for single-module)
+pasbuild dependency-tree -m demo   # Dependencies for the named module only
+----
+
+**What it does:**
+
+For multi-module (aggregator) projects, modules are listed in topological order — dependencies before dependents. Each module entry shows:
+
+* Local module dependencies (`[module]`)
+* External repository dependencies (`[external]`)
+* The module's packaging type (`[library]`, `[application]`, `[aggregator]`)
+
+For single-module projects, only the declared `<dependencies>` (external) are shown.
+
+**Example output — multi-module project:**
+
+[source]
+----
+[INFO] ------------------------------------------------------------------------
+[INFO] Dependency Tree
+[INFO] ------------------------------------------------------------------------
+[INFO]
+[INFO] math-core 1.0.0 [library]
+[INFO]   (no dependencies)
+[INFO]
+[INFO] math-utils 1.0.0 [library]
+[INFO]   └─ math-core [module]
+[INFO]
+[INFO] calculator 1.0.0 [application]
+[INFO]   ├─ math-utils [module]
+[INFO]   └─ some-lib:2.0.0 [external]
+----
+
+**Example output — single-module project with external dependencies:**
+
+[source]
+----
+[INFO] ------------------------------------------------------------------------
+[INFO] Dependency Tree
+[INFO] ------------------------------------------------------------------------
+[INFO]
+[INFO] my-app 1.0.0
+[INFO]   ├─ lib-alpha:1.0.0 [external]
+[INFO]   └─ lib-beta:3.2.1 [external]
+----
+
+**Use cases:**
+
+* Inspect the dependency graph before a build, without compiler output interfering
+* Verify that module dependency declarations are correct
+* Quickly audit which external libraries a module relies on
+* Diagnose unexpected transitive dependency relationships
 
 === init
 

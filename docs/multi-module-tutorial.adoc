@@ -183,6 +183,17 @@ Output shows build progress:
 [INFO] Reactor build complete: 3/3 modules built
 ----
 
+=== Inspect Dependencies Before Building
+
+Before building, use `dependency-tree` to verify module relationships without
+invoking the compiler:
+
+[source,bash]
+----
+pasbuild dependency-tree          # Show all modules and their dependencies
+pasbuild dependency-tree -m demo  # Show only demo's dependencies
+----
+
 === Build Specific Module
 
 Build only a specific module (and its dependencies):
@@ -340,39 +351,70 @@ pasbuild test -m demo                 # Test demo module
 pasbuild package -m ui                # Package UI library
 ----
 
-=== Verbose Dependency Graph Display
+=== Dependency Tree
 
-Display the module dependency graph with the `-v` (verbose) flag:
+Display the full dependency graph without compiling anything:
+
+[source,bash]
+----
+pasbuild dependency-tree
+----
+
+Output lists every module in topological order (dependencies first), with each
+dependency labelled by kind:
+
+[source]
+----
+[INFO] ------------------------------------------------------------------------
+[INFO] Dependency Tree
+[INFO] ------------------------------------------------------------------------
+[INFO]
+[INFO] core 1.0.0 [library]
+[INFO]   (no dependencies)
+[INFO]
+[INFO] ui 1.0.0 [library]
+[INFO]   └─ core [module]
+[INFO]
+[INFO] demo 1.0.0 [application]
+[INFO]   ├─ ui [module]
+[INFO]   └─ some-ext:2.0.0 [external]
+----
+
+Restrict the output to a single named module with `-m`:
+
+[source,bash]
+----
+pasbuild dependency-tree -m demo
+----
+
+[source]
+----
+[INFO] ------------------------------------------------------------------------
+[INFO] Dependency Tree for module: demo
+[INFO] ------------------------------------------------------------------------
+[INFO]
+[INFO] demo 1.0.0 [application]
+[INFO]   ├─ ui [module]
+[INFO]   └─ some-ext:2.0.0 [external]
+----
+
+`dependency-tree` is particularly useful for large multi-module projects where
+running `compile -v` buries the dependency graph under screens of compiler
+output.  The goal exits immediately after printing the tree — no compilation
+occurs.
+
+=== Verbose Dependency Graph During Build
+
+The `-v` (verbose) flag still shows a compact dependency summary at the start
+of a `compile` run, but the output is interleaved with FPC compiler lines:
 
 [source,bash]
 ----
 pasbuild compile -v
 ----
 
-Output shows each module and its dependencies:
-
-[source]
-----
-[INFO] Building 3 modules in dependency order
-[INFO] Dependency Graph:
-[INFO]
-[INFO] core (no dependencies)
-[INFO] ui (depends on: core)
-[INFO]   └─ core
-[INFO] demo (depends on: ui)
-[INFO]   └─ ui
-[INFO]
-[INFO] Building module 1/3: core
-[INFO] Building module 2/3: ui
-[INFO] Building module 3/3: demo
-----
-
-The verbose flag helps you:
-
-- Visualize module relationships
-- Verify correct dependency setup
-- Understand the build order
-- Debug complex dependency chains
+Use `dependency-tree` when you want to inspect dependencies in isolation;
+use `-v` when you want extra detail alongside the full build output.
 
 === Combined with Other Flags
 
