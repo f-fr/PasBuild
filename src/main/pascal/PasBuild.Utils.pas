@@ -286,10 +286,11 @@ end;
 class function TUtils.ExecuteProcessWithCapture(const ACommand: string; out AOutput: string): Integer;
 var
   AProcess: TProcess;
-  OutputList: TStringList;
+  Buffer: array[0..4095] of Char;
+  BytesRead: Integer;
+  OutputStr: string;
 begin
   AOutput := '';
-  OutputList := TStringList.Create;
   AProcess := TProcess.Create(nil);
   try
     {$IFDEF UNIX}
@@ -301,12 +302,34 @@ begin
     AProcess.Parameters.Add('/c');
     AProcess.Parameters.Add(ACommand);
     {$ENDIF}
-    AProcess.Options := [poUsePipes, poStderrToOutPut, poWaitOnExit];
+    AProcess.Options := [poUsePipes, poStderrToOutPut];
 
     try
       AProcess.Execute;
-      OutputList.LoadFromStream(AProcess.Output);
-      AOutput := OutputList.Text;
+
+      // Drain output while the process is running. LoadFromStream and
+      // poWaitOnExit must NOT be used together with ExitCode: FPC applies
+      // WEXITSTATUS when WaitOnExit is called explicitly, leaving ExitCode's
+      // second WEXITSTATUS pass returning 0. The while-Running drain causes
+      // TProcess to store the raw waitpid status internally, so ExitCode's
+      // single WEXITSTATUS pass yields the correct value.
+      OutputStr := '';
+      while AProcess.Running or (AProcess.Output.NumBytesAvailable > 0) do
+      begin
+        if AProcess.Output.NumBytesAvailable > 0 then
+        begin
+          BytesRead := AProcess.Output.Read(Buffer, SizeOf(Buffer) - 1);
+          if BytesRead > 0 then
+          begin
+            Buffer[BytesRead] := #0;
+            OutputStr := OutputStr + StrPas(Buffer);
+          end;
+        end
+        else
+          Sleep(10);
+      end;
+      AProcess.WaitOnExit;
+      AOutput := OutputStr;
       Result := AProcess.ExitCode;
     except
       on E: Exception do
@@ -318,7 +341,6 @@ begin
     end;
   finally
     AProcess.Free;
-    OutputList.Free;
   end;
 end;
 
