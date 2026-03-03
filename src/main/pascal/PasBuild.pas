@@ -33,6 +33,7 @@ uses
   PasBuild.Command.Install,
   PasBuild.Command.Init,
   PasBuild.Command.Reactor,
+  PasBuild.Command.DependencyTree,
   PasBuild.ModuleDiscovery,
   PasBuild.Repository,
   PasBuild.Dependencies,
@@ -225,6 +226,10 @@ begin
             bgInstall:
               Command := TReactorCommand.Create(Config, Args.ProfileIds, Registry, 'install', Args.SelectedModule);
 
+            bgDependencyTree:
+              Command := TDependencyTreeCommand.CreateMultiModule(
+                Config, Args.ProfileIds, Registry, Args.SelectedModule);
+
             else
               // For other goals, use single-module behavior
               Command := nil;
@@ -275,6 +280,9 @@ begin
 
           bgInstall:
             Command := TInstallCommand.Create(Config, Args.ProfileIds);
+
+          bgDependencyTree:
+            Command := TDependencyTreeCommand.Create(Config, Args.ProfileIds);
 
           bgInit:
             Command := TInitCommand.Create(Config, Args.ProfileIds);

@@ -23,7 +23,7 @@ const
 
 type
   { Valid build goals }
-  TBuildGoal = (bgUnknown, bgClean, bgProcessResources, bgCompile, bgProcessTestResources, bgTestCompile, bgTest, bgPackage, bgSourcePackage, bgInstall, bgInit, bgHelp, bgVersion, bgLicense);
+  TBuildGoal = (bgUnknown, bgClean, bgProcessResources, bgCompile, bgProcessTestResources, bgTestCompile, bgTest, bgPackage, bgSourcePackage, bgInstall, bgDependencyTree, bgInit, bgHelp, bgVersion, bgLicense);
 
   { Parsed command-line arguments }
   TCommandLineArgs = record
@@ -82,6 +82,8 @@ begin
     Result := bgSourcePackage
   else if GoalLower = 'install' then
     Result := bgInstall
+  else if GoalLower = 'dependency-tree' then
+    Result := bgDependencyTree
   else if GoalLower = 'init' then
     Result := bgInit
   else if (GoalLower = '--help') or (GoalLower = '-h') then
@@ -106,6 +108,7 @@ begin
     bgPackage: Result := 'package';
     bgSourcePackage: Result := 'source-package';
     bgInstall: Result := 'install';
+    bgDependencyTree: Result := 'dependency-tree';
     bgInit: Result := 'init';
     bgHelp: Result := '--help';
     bgVersion: Result := '--version';
@@ -264,6 +267,7 @@ begin
   WriteLn('  package                 Create release archive (runs: clean -> compile -> package)');
   WriteLn('  source-package          Create source archive with src/, docs, and configured files');
   WriteLn('  install                 Install compiled units to local repository (~/.pasbuild/repository/)');
+  WriteLn('  dependency-tree         Show project dependency tree (no compilation)');
   WriteLn('  init                    Create new project structure');
   WriteLn;
   WriteLn('Options:');
@@ -286,6 +290,8 @@ begin
   WriteLn('  pasbuild compile -f custom.xml        # Use alternate project file');
   WriteLn('  pasbuild compile -f ../../../project.xml  # Build from a subdirectory');
   WriteLn('  pasbuild compile -m mymodule          # Build specific module (multi-module)');
+  WriteLn('  pasbuild dependency-tree              # Show full project dependency tree');
+  WriteLn('  pasbuild dependency-tree -m mymodule  # Show dependencies for one module');
   WriteLn('  pasbuild compile --fpc /opt/fpc-3.3.1/bin/fpc  # Use custom FPC');
   WriteLn('  pasbuild test                         # Run tests');
   WriteLn('  pasbuild package                      # Create release archive');

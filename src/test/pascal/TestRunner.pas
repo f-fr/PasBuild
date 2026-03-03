@@ -21,7 +21,8 @@ uses
   PasBuild.Test.Repository,
   PasBuild.Test.Config.Dependencies,
   PasBuild.Test.Dependencies,
-  PasBuild.Test.Integration.Dependencies;
+  PasBuild.Test.Integration.Dependencies,
+  PasBuild.Test.Command.DependencyTree;
 
 var
   Application: TTestRunner;
