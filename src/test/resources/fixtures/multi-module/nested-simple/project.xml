@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>nested-simple-root</name>
+  <version>3.0.0</version>
+
+  <build>
+    <packaging>pom</packaging>
+  </build>
+
+  <modules>
+    <module>lib-core</module>
+    <module>sub-agg</module>
+  </modules>
+</project>

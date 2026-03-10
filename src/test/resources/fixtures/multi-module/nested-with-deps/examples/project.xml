@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>examples</name>
+
+  <build>
+    <packaging>pom</packaging>
+  </build>
+
+  <modules>
+    <module>demo-app</module>
+  </modules>
+</project>

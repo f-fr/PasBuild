@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>demo-app</name>
+
+  <build>
+    <mainSource>DemoApp.pas</mainSource>
+  </build>
+
+  <moduleDependencies>
+    <module>../../lib-core</module>
+  </moduleDependencies>
+</project>
