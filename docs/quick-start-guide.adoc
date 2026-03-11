@@ -1404,11 +1404,15 @@ If `project.xml` already exists, returns error: `"Project already initialized"`
     <!-- Project type (application or library, default: application) -->
     <projectType>application</projectType>
 
-    <!-- Main source file in src/main/pascal/ -->
+    <!-- Main source file (relative to sourceDirectory) -->
     <mainSource>Main.pas</mainSource>
 
     <!-- Executable name (without platform extension) -->
     <executableName>myapp</executableName>
+
+    <!-- Source directory (default: src/main/pascal) -->
+    <!-- Use "." for project root, or any relative path -->
+    <!-- <sourceDirectory>.</sourceDirectory> -->
 
     <!-- Output directory (default: target) -->
     <outputDirectory>target</outputDirectory>
@@ -1705,6 +1709,27 @@ project-root/
 * Subdirectories are automatically scanned for units and include files
 * Resources are automatically copied to `target/` (with optional filtering)
 * Test units compiled separately to `target/test-units/` (Maven-style)
+
+=== Custom Source Directory
+
+For projects that do not follow the standard layout (e.g. small example applications), the `<sourceDirectory>` element in the `<build>` section overrides the default `src/main/pascal/` path:
+
+[source,xml]
+----
+<build>
+  <mainSource>Demo.pas</mainSource>
+  <sourceDirectory>.</sourceDirectory>   <!-- Source files in project root -->
+</build>
+----
+
+Common values:
+
+* `.` — source files are in the project root directory
+* `pascal` — source files are in a `pascal/` subdirectory
+* `src` — source files are in a `src/` subdirectory
+* _(omitted)_ — defaults to `src/main/pascal/`
+
+This is particularly useful for example projects within a nested aggregator, where the full standard layout would be unnecessarily verbose.
 
 == Troubleshooting
 

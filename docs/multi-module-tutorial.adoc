@@ -529,6 +529,46 @@ Leaf modules under a nested aggregator can depend on modules at any level using 
 </project>
 ----
 
+=== Custom Source Directory for Examples
+
+Example projects typically do not need the full `src/main/pascal/` directory layout. Use `<sourceDirectory>` to place source files directly in the project root:
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>demo1</name>
+
+  <build>
+    <mainSource>Demo1.pas</mainSource>
+    <executableName>demo1</executableName>
+    <sourceDirectory>.</sourceDirectory>    <!-- Source files in project root -->
+  </build>
+
+  <moduleDependencies>
+    <module>../../core</module>
+  </moduleDependencies>
+</project>
+----
+
+With this configuration, the directory structure becomes:
+
+[source]
+----
+examples/
+├── project.xml                    # Nested aggregator
+├── demo1/
+│   ├── project.xml
+│   └── Demo1.pas                  # Source directly in project root
+└── demo2/
+    ├── project.xml
+    └── Demo2.pas
+----
+
+This avoids the overhead of creating `src/main/pascal/` for each small example.
+
+Valid `<sourceDirectory>` values include `.` (project root), `pascal` (a `pascal/` subdirectory), or any relative path. When omitted, the default `src/main/pascal` is used.
+
 === How It Works
 
 * **Recursive discovery**: PasBuild walks the `<modules>` tree recursively. When it encounters a POM-type module with its own `<modules>`, it descends into those children. The result is a single flat module list.
