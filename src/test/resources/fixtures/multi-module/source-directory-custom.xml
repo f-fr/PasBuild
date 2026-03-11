@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>CustomSourceDir</name>
+  <version>1.0.0</version>
+
+  <build>
+    <mainSource>MyApp.pas</mainSource>
+    <sourceDirectory>.</sourceDirectory>
+  </build>
+</project>

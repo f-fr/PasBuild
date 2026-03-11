@@ -191,6 +191,7 @@ begin
   AConfig.BuildConfig.MainSource := GetNodeText(ABuildNode, 'mainSource');
   AConfig.BuildConfig.OutputDirectory := GetNodeText(ABuildNode, 'outputDirectory', 'target');
   AConfig.BuildConfig.ExecutableName := GetNodeText(ABuildNode, 'executableName');
+  AConfig.BuildConfig.SourceDirectory := GetNodeText(ABuildNode, 'sourceDirectory', 'src/main/pascal');
 
   // Parse manualUnitPaths flag (default: false = auto-scan enabled)
   AConfig.BuildConfig.ManualUnitPaths := LowerCase(GetNodeText(ABuildNode, 'manualUnitPaths', 'false')) = 'true';

@@ -256,7 +256,7 @@ begin
   TUtils.LogInfo('Generating bootstrap program for library...');
 
   // Discover all units
-  BasePath := TUtils.NormalizePath('src/main/pascal');
+  BasePath := TUtils.NormalizePath(AConfig.BuildConfig.SourceDirectory);
   Units := DiscoverUnits(
     BasePath,
     AConfig.BuildConfig.UnitPaths,

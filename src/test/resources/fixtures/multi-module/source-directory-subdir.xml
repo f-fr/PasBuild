@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>SubdirSourceDir</name>
+  <version>1.0.0</version>
+
+  <build>
+    <mainSource>Main.pas</mainSource>
+    <sourceDirectory>pascal</sourceDirectory>
+  </build>
+</project>

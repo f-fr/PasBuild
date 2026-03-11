@@ -95,7 +95,7 @@ begin
     end;
 
     // Add unit search paths (-Fu)
-    BasePath := TUtils.NormalizePath('src/main/pascal');
+    BasePath := TUtils.NormalizePath(Config.BuildConfig.SourceDirectory);
 
     if not Config.BuildConfig.ManualUnitPaths then
       // Always add the base source directory first
@@ -139,7 +139,6 @@ begin
         if TUtils.IsConditionMet(ConditionalPath.Condition, ActiveDefines) then
         begin
           s := TUtils.NormalizePath(ConditionalPath.Path);
-          writeln('[DEBUG] user defined UnitPath: ' + s);
           UnitPaths.Add(s);
         end;
       end;
@@ -256,7 +255,7 @@ begin
   TUtils.LogInfo('Compiling project...');
 
   // Verify directory layout
-  if not TUtils.VerifyDirectoryLayout('.') then
+  if not TUtils.VerifyDirectoryLayout('.', Config.BuildConfig.SourceDirectory) then
   begin
     Result := 1;
     Exit;
@@ -316,7 +315,7 @@ begin
   else
   begin
     // Application project: Check if main source file exists
-    MainSourcePath := TUtils.NormalizePath('src/main/pascal/' + Config.BuildConfig.MainSource);
+    MainSourcePath := TUtils.NormalizePath(Config.BuildConfig.SourceDirectory + '/' + Config.BuildConfig.MainSource);
     if not FileExists(MainSourcePath) then
     begin
       TUtils.LogError('Main source file not found: ' + MainSourcePath);
@@ -339,7 +338,7 @@ begin
     StatusDir := TUtils.CreateStatusDirectory('compile');
 
     // Collect and write source files list
-    SourceFiles := TUtils.CollectSourceFiles(TUtils.NormalizePath('src/main/pascal'));
+    SourceFiles := TUtils.CollectSourceFiles(TUtils.NormalizePath(Config.BuildConfig.SourceDirectory));
     try
       TUtils.LogInfo('Found ' + IntToStr(SourceFiles.Count) + ' source file(s)');
       TUtils.WriteListFile(StatusDir + DirectorySeparator + 'inputUnits.lst', SourceFiles);
@@ -348,7 +347,7 @@ begin
     end;
 
     // Collect and write include files list
-    IncludeFiles := TUtils.CollectIncludeFiles(TUtils.NormalizePath('src/main/pascal'));
+    IncludeFiles := TUtils.CollectIncludeFiles(TUtils.NormalizePath(Config.BuildConfig.SourceDirectory));
     try
       if IncludeFiles.Count > 0 then
         TUtils.LogInfo('Found ' + IntToStr(IncludeFiles.Count) + ' include file(s)');

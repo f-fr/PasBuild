@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>DefaultSourceDir</name>
+  <version>1.0.0</version>
+
+  <build>
+    <mainSource>Main.pas</mainSource>
+  </build>
+</project>

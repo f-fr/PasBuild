@@ -86,6 +86,7 @@ type
     FUnitPaths: TConditionalPathList;
     FIncludePaths: TConditionalPathList;
     FManualUnitPaths: Boolean;
+    FSourceDirectory: string;           // Source directory (default: src/main/pascal)
     FResolvedModulePaths: TStringList;  // Artifact paths from module dependencies
   public
     constructor Create;
@@ -100,6 +101,7 @@ type
     property UnitPaths: TConditionalPathList read FUnitPaths;
     property IncludePaths: TConditionalPathList read FIncludePaths;
     property ManualUnitPaths: Boolean read FManualUnitPaths write FManualUnitPaths;
+    property SourceDirectory: string read FSourceDirectory write FSourceDirectory;
     property ResolvedModulePaths: TStringList read FResolvedModulePaths;
   end;
 
@@ -305,6 +307,7 @@ begin
   // Set defaults
   FProjectType := ptApplication;  // Application by default
   FOutputDirectory := 'target';
+  FSourceDirectory := 'src/main/pascal';  // Standard layout by default
   FManualUnitPaths := False;  // Auto-scan by default
 end;
 

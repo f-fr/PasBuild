@@ -32,6 +32,7 @@ type
 
     { Directory and file operations }
     class function VerifyDirectoryLayout(const AProjectRoot: string): Boolean;
+    class function VerifyDirectoryLayout(const AProjectRoot: string; const ASourceDirectory: string): Boolean;
     class function ScanForUnitPaths(const ABaseDir: string): TStringList;
     class function ScanForIncludePaths(const ABaseDir: string): TStringList;
     class function ScanForUnitPathsFiltered(const ABaseDir: string; AConditionalPaths: TConditionalPathList; AActiveDefines: TStringList): TStringList;
@@ -110,19 +111,24 @@ begin
 end;
 
 class function TUtils.VerifyDirectoryLayout(const AProjectRoot: string): Boolean;
+begin
+  Result := VerifyDirectoryLayout(AProjectRoot, 'src/main/pascal');
+end;
+
+class function TUtils.VerifyDirectoryLayout(const AProjectRoot: string; const ASourceDirectory: string): Boolean;
 var
-  MainPascalDir: string;
+  SourceDir: string;
 begin
   Result := False;
 
-  // Check if src/main/pascal directory exists
+  // Check if source directory exists
   // Use normalized paths for cross-platform compatibility
-  MainPascalDir := IncludeTrailingPathDelimiter(AProjectRoot) +
-                   NormalizePath('src/main/pascal');
+  SourceDir := IncludeTrailingPathDelimiter(AProjectRoot) +
+               NormalizePath(ASourceDirectory);
 
-  if not DirectoryExists(MainPascalDir) then
+  if not DirectoryExists(SourceDir) then
   begin
-    LogError('Standard layout not found. Expected: src/main/pascal/');
+    LogError('Source directory not found: ' + ASourceDirectory + '/');
     Exit;
   end;
 

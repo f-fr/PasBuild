@@ -66,6 +66,16 @@ type
     procedure TestParseModuleWithoutVersionStandaloneFails;
   end;
 
+  { Test parsing of <sourceDirectory> element from XML }
+  TTestParseSourceDirectory = class(TTestCase)
+  private
+    function GetFixturePath(const AFileName: string): string;
+  published
+    procedure TestSourceDirectoryDefault;
+    procedure TestSourceDirectoryCustomDot;
+    procedure TestSourceDirectorySubdir;
+  end;
+
 implementation
 
 { TTestParsePackaging }
@@ -383,10 +393,57 @@ begin
     Config.Free;
 end;
 
+{ TTestParseSourceDirectory }
+
+function TTestParseSourceDirectory.GetFixturePath(const AFileName: string): string;
+begin
+  Result := 'fixtures/multi-module/' + AFileName;
+end;
+
+procedure TTestParseSourceDirectory.TestSourceDirectoryDefault;
+var
+  Config: TProjectConfig;
+begin
+  Config := TConfigLoader.LoadProjectXML(GetFixturePath('source-directory-default.xml'));
+  try
+    AssertEquals('Default sourceDirectory should be src/main/pascal',
+      'src/main/pascal', Config.BuildConfig.SourceDirectory);
+  finally
+    Config.Free;
+  end;
+end;
+
+procedure TTestParseSourceDirectory.TestSourceDirectoryCustomDot;
+var
+  Config: TProjectConfig;
+begin
+  Config := TConfigLoader.LoadProjectXML(GetFixturePath('source-directory-custom.xml'));
+  try
+    AssertEquals('Custom sourceDirectory should be dot',
+      '.', Config.BuildConfig.SourceDirectory);
+  finally
+    Config.Free;
+  end;
+end;
+
+procedure TTestParseSourceDirectory.TestSourceDirectorySubdir;
+var
+  Config: TProjectConfig;
+begin
+  Config := TConfigLoader.LoadProjectXML(GetFixturePath('source-directory-subdir.xml'));
+  try
+    AssertEquals('Subdir sourceDirectory should be pascal',
+      'pascal', Config.BuildConfig.SourceDirectory);
+  finally
+    Config.Free;
+  end;
+end;
+
 initialization
   RegisterTest(TTestParsePackaging);
   RegisterTest(TTestParseModules);
   RegisterTest(TTestValidatePackagingRules);
   RegisterTest(TTestVersionLoading);
+  RegisterTest(TTestParseSourceDirectory);
 
 end.
