@@ -104,6 +104,16 @@ type
     procedure TestModuleSelectionFlagFormat;
   end;
 
+  { Tests for FilterBuildOrder (module selection filtering) }
+  TTestFilterBuildOrder = class(TTestCase)
+  published
+    procedure TestFilterSelectsOnlyDependencies;
+    procedure TestFilterExcludesUnrelatedModules;
+    procedure TestFilterAggregatorExpandsChildren;
+    procedure TestFilterAggregatorIncludesChildDependencies;
+    procedure TestFilterNotFoundClearsBuildOrder;
+  end;
+
 implementation
 
 { TTestModuleInfo }
@@ -1227,6 +1237,220 @@ begin
   end;
 end;
 
+{ TTestFilterBuildOrder }
+
+procedure TTestFilterBuildOrder.TestFilterSelectsOnlyDependencies;
+var
+  Registry: TModuleRegistry;
+  BuildOrder: TList;
+  Core, UI, App: TModuleInfo;
+begin
+  { Setup: core <- ui <- app; selecting app should include all three }
+  Registry := TModuleRegistry.Create;
+  try
+    Core := TModuleInfo.Create;
+    Core.Name := 'core';
+    Core.Path := '/project/core';
+    Registry.RegisterModule(Core);
+
+    UI := TModuleInfo.Create;
+    UI.Name := 'ui';
+    UI.Path := '/project/ui';
+    UI.Dependencies.Add('core');
+    Registry.RegisterModule(UI);
+
+    App := TModuleInfo.Create;
+    App.Name := 'app';
+    App.Path := '/project/app';
+    App.Dependencies.Add('ui');
+    Registry.RegisterModule(App);
+
+    BuildOrder := Registry.GetBuildOrder;
+    try
+      Registry.FilterBuildOrder(BuildOrder, 'app');
+      AssertEquals('All 3 modules needed for app', 3, BuildOrder.Count);
+      AssertEquals('core first', 'core', TModuleInfo(BuildOrder[0]).Name);
+      AssertEquals('ui second', 'ui', TModuleInfo(BuildOrder[1]).Name);
+      AssertEquals('app third', 'app', TModuleInfo(BuildOrder[2]).Name);
+    finally
+      BuildOrder.Free;
+    end;
+  finally
+    Registry.Free;
+  end;
+end;
+
+procedure TTestFilterBuildOrder.TestFilterExcludesUnrelatedModules;
+var
+  Registry: TModuleRegistry;
+  BuildOrder: TList;
+  Core, Unrelated, App: TModuleInfo;
+  I: Integer;
+  Found: Boolean;
+begin
+  { Setup: core <- app, unrelated has no connection; selecting app should exclude unrelated }
+  Registry := TModuleRegistry.Create;
+  try
+    Core := TModuleInfo.Create;
+    Core.Name := 'core';
+    Core.Path := '/project/core';
+    Registry.RegisterModule(Core);
+
+    Unrelated := TModuleInfo.Create;
+    Unrelated.Name := 'unrelated';
+    Unrelated.Path := '/project/unrelated';
+    Registry.RegisterModule(Unrelated);
+
+    App := TModuleInfo.Create;
+    App.Name := 'app';
+    App.Path := '/project/app';
+    App.Dependencies.Add('core');
+    Registry.RegisterModule(App);
+
+    BuildOrder := Registry.GetBuildOrder;
+    try
+      Registry.FilterBuildOrder(BuildOrder, 'app');
+      AssertEquals('Only core and app should remain', 2, BuildOrder.Count);
+
+      Found := False;
+      for I := 0 to BuildOrder.Count - 1 do
+        if TModuleInfo(BuildOrder[I]).Name = 'unrelated' then
+          Found := True;
+      AssertFalse('Unrelated module should be excluded', Found);
+    finally
+      BuildOrder.Free;
+    end;
+  finally
+    Registry.Free;
+  end;
+end;
+
+procedure TTestFilterBuildOrder.TestFilterAggregatorExpandsChildren;
+var
+  Registry: TModuleRegistry;
+  BuildOrder: TList;
+  Examples, Demo1, Demo2: TModuleInfo;
+  ExamplesConfig: TProjectConfig;
+begin
+  { Setup: examples(pom) with children demo1, demo2 under its path }
+  Registry := TModuleRegistry.Create;
+  try
+    ExamplesConfig := TProjectConfig.Create;
+    ExamplesConfig.BuildConfig.ProjectType := ptPom;
+
+    Examples := TModuleInfo.Create;
+    Examples.Name := 'examples';
+    Examples.Path := '/project/examples';
+    Examples.Config := ExamplesConfig;
+    Registry.RegisterModule(Examples);
+
+    Demo1 := TModuleInfo.Create;
+    Demo1.Name := 'demo1';
+    Demo1.Path := '/project/examples/demo1';
+    Registry.RegisterModule(Demo1);
+
+    Demo2 := TModuleInfo.Create;
+    Demo2.Name := 'demo2';
+    Demo2.Path := '/project/examples/demo2';
+    Registry.RegisterModule(Demo2);
+
+    BuildOrder := Registry.GetBuildOrder;
+    try
+      Registry.FilterBuildOrder(BuildOrder, 'examples');
+      AssertEquals('Should include examples + 2 children', 3, BuildOrder.Count);
+    finally
+      BuildOrder.Free;
+    end;
+  finally
+    Registry.Free;
+  end;
+end;
+
+procedure TTestFilterBuildOrder.TestFilterAggregatorIncludesChildDependencies;
+var
+  Registry: TModuleRegistry;
+  BuildOrder: TList;
+  Core, Unrelated, Examples, DemoApp: TModuleInfo;
+  ExamplesConfig: TProjectConfig;
+  I: Integer;
+  Found: Boolean;
+begin
+  { Setup: core, unrelated, examples(pom) -> demo-app (depends on core)
+    Selecting examples should include: core, examples, demo-app
+    But NOT unrelated }
+  Registry := TModuleRegistry.Create;
+  try
+    Core := TModuleInfo.Create;
+    Core.Name := 'core';
+    Core.Path := '/project/core';
+    Registry.RegisterModule(Core);
+
+    Unrelated := TModuleInfo.Create;
+    Unrelated.Name := 'unrelated';
+    Unrelated.Path := '/project/unrelated';
+    Registry.RegisterModule(Unrelated);
+
+    ExamplesConfig := TProjectConfig.Create;
+    ExamplesConfig.BuildConfig.ProjectType := ptPom;
+
+    Examples := TModuleInfo.Create;
+    Examples.Name := 'examples';
+    Examples.Path := '/project/examples';
+    Examples.Config := ExamplesConfig;
+    Registry.RegisterModule(Examples);
+
+    DemoApp := TModuleInfo.Create;
+    DemoApp.Name := 'demo-app';
+    DemoApp.Path := '/project/examples/demo-app';
+    DemoApp.Dependencies.Add('core');
+    Registry.RegisterModule(DemoApp);
+
+    BuildOrder := Registry.GetBuildOrder;
+    try
+      Registry.FilterBuildOrder(BuildOrder, 'examples');
+      AssertEquals('Should include core, examples, demo-app', 3, BuildOrder.Count);
+
+      Found := False;
+      for I := 0 to BuildOrder.Count - 1 do
+        if TModuleInfo(BuildOrder[I]).Name = 'unrelated' then
+          Found := True;
+      AssertFalse('Unrelated module should be excluded', Found);
+
+      { core should come before demo-app }
+      AssertEquals('First should be core', 'core', TModuleInfo(BuildOrder[0]).Name);
+    finally
+      BuildOrder.Free;
+    end;
+  finally
+    Registry.Free;
+  end;
+end;
+
+procedure TTestFilterBuildOrder.TestFilterNotFoundClearsBuildOrder;
+var
+  Registry: TModuleRegistry;
+  BuildOrder: TList;
+  Core: TModuleInfo;
+begin
+  Registry := TModuleRegistry.Create;
+  try
+    Core := TModuleInfo.Create;
+    Core.Name := 'core';
+    Core.Path := '/project/core';
+    Registry.RegisterModule(Core);
+
+    BuildOrder := Registry.GetBuildOrder;
+    try
+      Registry.FilterBuildOrder(BuildOrder, 'nonexistent');
+      AssertEquals('Build order should be empty for unknown module', 0, BuildOrder.Count);
+    finally
+      BuildOrder.Free;
+    end;
+  finally
+    Registry.Free;
+  end;
+end;
+
 initialization
   RegisterTest(TTestModuleInfo);
   RegisterTest(TTestModuleRegistry);
@@ -1236,5 +1460,6 @@ initialization
   RegisterTest(TTestReactorBuild);
   RegisterTest(TTestVersionInheritance);
   RegisterTest(TTestCLIModuleSelection);
+  RegisterTest(TTestFilterBuildOrder);
 
 end.

@@ -128,69 +128,10 @@ begin
 end;
 
 procedure TReactorCommand.FilterBuildOrderForSelectedModule(var BuildOrder: TList);
-var
-  I: Integer;
-  Module: TModuleInfo;
-  SelectedModuleInfo: TModuleInfo;
-  FilteredOrder: TList;
-  IncludeModule: Boolean;
 begin
-  { Find the selected module by name }
-  SelectedModuleInfo := nil;
-  for I := 0 to FRegistry.Modules.Count - 1 do
-  begin
-    Module := TModuleInfo(FRegistry.Modules[I]);
-    if CompareText(Module.Name, FSelectedModule) = 0 then
-    begin
-      SelectedModuleInfo := Module;
-      Break;
-    end;
-  end;
-
-  if SelectedModuleInfo = nil then
-  begin
+  FRegistry.FilterBuildOrder(BuildOrder, FSelectedModule);
+  if BuildOrder.Count = 0 then
     TUtils.LogError('Module not found: ' + FSelectedModule);
-    { Clear build order to signal error }
-    BuildOrder.Clear;
-    Exit;
-  end;
-
-  { Filter: Keep only modules that the selected module depends on (and the selected module itself) }
-  { The build order is topologically sorted, so all dependencies come before the selected module }
-  FilteredOrder := TList.Create;
-  try
-    for I := 0 to BuildOrder.Count - 1 do
-    begin
-      Module := TModuleInfo(BuildOrder[I]);
-      IncludeModule := False;
-
-      { Include the selected module itself }
-      if CompareText(Module.Name, FSelectedModule) = 0 then
-        IncludeModule := True
-      { Include if this module is a (direct or transitive) dependency of the selected module }
-      { Since build order is sorted, we only include modules up to and including selected }
-      else
-      begin
-        { Check if this module is transitively needed by selected module }
-        { For now, include all modules that come before selected in build order }
-        IncludeModule := True;
-      end;
-
-      if IncludeModule then
-        FilteredOrder.Add(Module);
-
-      { Stop once we've added the selected module }
-      if CompareText(Module.Name, FSelectedModule) = 0 then
-        Break;
-    end;
-
-    { Replace build order with filtered order }
-    BuildOrder.Clear;
-    for I := 0 to FilteredOrder.Count - 1 do
-      BuildOrder.Add(FilteredOrder[I]);
-  finally
-    FilteredOrder.Free;
-  end;
 end;
 
 function TReactorCommand.Execute: Integer;
