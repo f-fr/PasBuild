@@ -626,6 +626,7 @@ pasbuild package
 For large projects with multiple components, PasBuild supports Maven-style multi-module projects with:
 
 * **Aggregator projects** - Coordinate multiple child modules
+* **Nested aggregators** - Group related modules under sub-aggregators (e.g., `examples/`)
 * **Library modules** - Reusable frameworks and utilities
 * **Application modules** - Executable projects depending on libraries
 * **Automatic dependency resolution** - Compile in correct order with no manual configuration
@@ -635,15 +636,21 @@ For large projects with multiple components, PasBuild supports Maven-style multi
 
 [source]
 ----
-my-framework/                      # Aggregator (packaging=pom)
+my-framework/                      # Root aggregator (packaging=pom)
 ├── project.xml
 ├── core/                          # Library module
 │   └── project.xml
 ├── ui/                            # Library depending on core
 │   └── project.xml
-└── demo/                          # Application depending on ui
-    └── project.xml
+└── examples/                      # Nested aggregator (packaging=pom)
+    ├── project.xml
+    ├── demo1/                     # Application depending on core
+    │   └── project.xml
+    └── demo2/                     # Application depending on ui
+        └── project.xml
 ----
+
+Nested aggregators can be nested to arbitrary depth. Module discovery recursively walks the aggregator tree and produces a single flat module list for the reactor. Version inheritance flows through the full aggregator chain: root → sub-aggregator → leaf module.
 
 **Basic usage:**
 
@@ -651,9 +658,9 @@ my-framework/                      # Aggregator (packaging=pom)
 ----
 cd my-framework
 pasbuild compile              # Build all modules in dependency order
-pasbuild compile -m demo      # Build only demo (and its dependencies)
+pasbuild compile -m demo1     # Build only demo1 (and its dependencies)
 pasbuild dependency-tree      # Show dependency graph without compiling
-pasbuild dependency-tree -m demo  # Show only demo's dependencies
+pasbuild dependency-tree -m demo1  # Show only demo1's dependencies
 ----
 
 **For detailed multi-module documentation**, see link:multi-module-tutorial.adoc[Multi-Module Tutorial].

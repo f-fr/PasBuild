@@ -206,7 +206,7 @@ For this design specification, we use `<packaging>` throughout.
 * No compiled output (no `target/` created)
 * `<modules>` element required
 * Cannot have module dependencies
-* Must be root of multi-module tree
+* Can be root or nested within another aggregator (nested aggregators supported)
 
 **Configuration:**
 
@@ -505,25 +505,30 @@ Input: Path to aggregator project.xml
 Output: TModuleRegistry with all modules registered
 
 Algorithm:
-1. Load aggregator project.xml
+1. Load root aggregator project.xml
 2. Validate packaging = pom
-3. For each <module> path in <modules>:
-   a. Resolve absolute path: aggregator_dir + module_path
-   b. Validate project.xml exists at path
-   c. Load module's project.xml
-   d. Create TModuleInfo with:
-      - name from <name>
-      - path = absolute module directory
-      - config = loaded TProjectConfig
-   e. Register in TModuleRegistry
-4. For each registered module:
-   a. Process module's <modules> section (dependencies)
+3. Seed visited-aggregator set with root path
+4. Recursively discover modules (DiscoverModulesRecursive):
+   For each <module> path in current aggregator's <modules>:
+   a. Resolve absolute path relative to current aggregator directory
+   b. Check visited-aggregator set for circular references
+   c. Validate path is within root project tree
+   d. Validate project.xml exists at path
+   e. Load module's project.xml (allow empty version for inheritance)
+   f. Version inheritance: if module has no version, inherit from parent aggregator
+   g. Create TModuleInfo with name, path, config
+   h. Register in shared TModuleRegistry
+   i. If module is packaging=pom with <modules>:
+      - Add path to visited-aggregator set
+      - Recurse into module's children (arbitrary depth)
+5. Second pass — for each registered module:
+   a. Process <moduleDependencies> section
    b. For each dependency path:
       - Resolve absolute path relative to module's directory
+      - Validate path within root project tree
       - Find module in registry by path
       - Add module name to TModuleInfo.Dependencies
-5. Validate no cycles in dependency graph
-6. Return populated registry
+6. Return flat TModuleRegistry (suitable for topological sort)
 ----
 
 ==== Path Resolution
@@ -1775,17 +1780,19 @@ root/
     └── demo2/project.xml (application)
 ----
 
-**Options:**
+**Resolution: Nested aggregators supported (implemented)**
 
-A. **Allow Nested Aggregators**
-   - Pros: Better organization for large projects
-   - Cons: Complexity in module discovery
+Option A was implemented. `TModuleDiscoverer.DiscoverModules` performs recursive discovery to arbitrary depth. When a discovered module has `packaging=pom` with its own `<modules>` list, the discoverer recurses into its children, collecting all modules into a single flat `TModuleRegistry`.
 
-B. **Forbid Nested Aggregators**
-   - Pros: Simpler implementation, flatter structure
-   - Cons: All modules must be direct children
+Key implementation details:
 
-**Recommendation:** Option B (forbid) for MVP. Add nested support in future if demand exists.
+* Cycle detection via visited aggregator path tracking (normalised with `ExcludeTrailingPathDelimiter`)
+* Version inheritance chains through all nesting levels (root → mid-aggregator → leaf)
+* Path validation always checks against the root aggregator directory
+* The reactor and topological sort operate on the flat module list unchanged
+* POM-type modules in the registry are skipped during build execution (existing behaviour)
+
+This enables organising large projects with nested groups (e.g., `examples/` as a sub-aggregator containing many small demo applications) without listing every leaf module in the root aggregator.
 
 ==== Question 4: Conditional Modules
 

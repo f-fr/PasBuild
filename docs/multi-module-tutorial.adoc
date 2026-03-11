@@ -440,6 +440,114 @@ pasbuild compile -p debug -v
 pasbuild test -v -f myproject.xml
 ----
 
+== Nested Aggregators
+
+For projects with many modules, you can group related modules under a nested aggregator. This is common for organising examples, plugins, or other logical groups.
+
+=== Example: Framework with Nested Examples
+
+[source]
+----
+my-framework/                         # Root aggregator
+├── project.xml                       # packaging=pom, modules: core, examples
+├── core/
+│   ├── project.xml                   # packaging=library
+│   └── src/main/pascal/
+└── examples/                         # Nested aggregator
+    ├── project.xml                   # packaging=pom, modules: demo1, demo2
+    ├── demo1/
+    │   ├── project.xml               # packaging=application
+    │   └── src/main/pascal/
+    └── demo2/
+        ├── project.xml               # packaging=application
+        └── src/main/pascal/
+----
+
+=== Root Aggregator
+
+The root `project.xml` lists `examples` as a module alongside `core`:
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>my-framework</name>
+  <version>2.0.0</version>
+
+  <build>
+    <packaging>pom</packaging>
+  </build>
+
+  <modules>
+    <module>core</module>
+    <module>examples</module>
+  </modules>
+</project>
+----
+
+=== Nested Aggregator
+
+The `examples/project.xml` is itself a POM aggregator with its own modules:
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>examples</name>
+  <!-- version inherited from root aggregator -->
+
+  <build>
+    <packaging>pom</packaging>
+  </build>
+
+  <modules>
+    <module>demo1</module>
+    <module>demo2</module>
+  </modules>
+</project>
+----
+
+=== Leaf Modules with Cross-Level Dependencies
+
+Leaf modules under a nested aggregator can depend on modules at any level using relative paths:
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>demo1</name>
+  <!-- version inherited through: root -> examples -> demo1 -->
+
+  <build>
+    <mainSource>Demo1.pas</mainSource>
+    <executableName>demo1</executableName>
+  </build>
+
+  <moduleDependencies>
+    <module>../../core</module>
+  </moduleDependencies>
+</project>
+----
+
+=== How It Works
+
+* **Recursive discovery**: PasBuild walks the `<modules>` tree recursively. When it encounters a POM-type module with its own `<modules>`, it descends into those children. The result is a single flat module list.
+* **Version inheritance chains**: Version flows through the full aggregator hierarchy. In the example above, `demo1` inherits version `2.0.0` from `examples`, which inherited it from the root.
+* **Cycle detection**: If a nested aggregator references a parent aggregator (directly or indirectly), PasBuild detects the cycle and raises an error.
+* **Arbitrary depth**: There is no limit to nesting depth. You can nest aggregators three or more levels deep if your project requires it.
+* **Build order**: The topological sort operates on the flat module list. Dependencies determine order, not nesting level. In this example, `core` builds first, then `demo1` and `demo2`.
+* **POM modules are skipped**: Nested aggregator modules appear in the reactor summary but are not compiled (they have no source code).
+
+=== Building
+
+[source,bash]
+----
+cd my-framework
+pasbuild compile              # Builds: core, demo1, demo2
+                              # (examples aggregator is skipped)
+pasbuild compile -m demo1    # Builds: core, demo1
+----
+
 == Advanced Topics
 
 === Module Naming Conventions
@@ -506,6 +614,15 @@ Fatal: Cyclic dependency detected: a
 ----
 
 Check that dependencies don't create cycles. Graph your modules and verify no cycles exist.
+
+=== Circular Aggregator Reference
+
+[source,text]
+----
+Fatal: Circular aggregator reference detected: .. (from /path/to/child-agg)
+----
+
+A nested aggregator's `<modules>` list points back to a parent aggregator. Ensure that nested aggregator module paths only point downwards into child directories.
 
 === Missing project.xml
 
