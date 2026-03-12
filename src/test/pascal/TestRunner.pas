@@ -23,6 +23,7 @@ uses
   PasBuild.Test.Dependencies,
   PasBuild.Test.Integration.Dependencies,
   PasBuild.Test.Command.DependencyTree,
+  PasBuild.Test.Command.Test,
   PasBuild.Test.NestedAggregator;
 
 var

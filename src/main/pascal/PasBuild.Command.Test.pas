@@ -227,12 +227,12 @@ begin
 
   TUtils.LogInfo('Compiling tests...');
 
-  // Check if test directory exists
+  // Check if test directory exists — absence is a skip, not a failure
+  // (matches Maven behaviour: no test sources = SUCCESS)
   if not DirectoryExists('src/test/pascal') then
   begin
-    TUtils.LogError('Test directory not found: src/test/pascal/');
-    TUtils.LogError('Run "pasbuild init" to create the test structure');
-    Result := 1;
+    TUtils.LogInfo('No test directory found (src/test/pascal/), skipping');
+    Result := 0;
     Exit;
   end;
 
@@ -397,12 +397,21 @@ begin
   TestExecutableName := '.' + DirectorySeparator + 'TestRunner' + TUtils.GetPlatformExecutableSuffix;
   TestExecutable := OutputDir + DirectorySeparator + 'TestRunner' + TUtils.GetPlatformExecutableSuffix;
 
-  // Check if test executable exists
+  // Check if test executable exists.
+  // Absence means test-compile was skipped (no src/test/pascal/) — skip here too.
   if not FileExists(TestExecutable) then
   begin
-    TUtils.LogError('Test executable not found: ' + TestExecutable);
-    TUtils.LogError('Run "pasbuild test-compile" first');
-    Result := 1;
+    if not DirectoryExists('src/test/pascal') then
+    begin
+      TUtils.LogInfo('No test directory found (src/test/pascal/), skipping');
+      Result := 0;
+    end
+    else
+    begin
+      TUtils.LogError('Test executable not found: ' + TestExecutable);
+      TUtils.LogError('Run "pasbuild test-compile" first');
+      Result := 1;
+    end;
     Exit;
   end;
 
