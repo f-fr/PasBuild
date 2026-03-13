@@ -132,6 +132,7 @@ var
   ProfileId: string;
   ActiveDefines: TStringList;
   TestBaseDir: string;
+  I: Integer;
 begin
   // Base command with default flags
   Result := TUtils.GetFPCExecutable + ' -Mobjfpc -O1';
@@ -151,6 +152,13 @@ begin
 
   // Link to already-compiled main units (compiled by 'compile' goal)
   Result := Result + ' -Fu' + TUtils.QuotePath(OutputDir + DirectorySeparator + 'units');
+
+  // Add resolved module dependency paths (same paths used by the compile goal)
+  for I := 0 to Config.BuildConfig.ResolvedModulePaths.Count - 1 do
+  begin
+    UnitPath := TUtils.NormalizePath(Config.BuildConfig.ResolvedModulePaths[I]);
+    Result := Result + ' -Fu' + TUtils.QuotePath(UnitPath);
+  end;
 
   // Add test source directory and its subdirectories
   TestBaseDir := TUtils.NormalizePath('src/test/pascal');

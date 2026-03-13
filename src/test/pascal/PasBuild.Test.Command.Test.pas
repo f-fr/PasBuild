@@ -24,6 +24,28 @@ uses
   PasBuild.Command.Test;
 
 type
+  { Subclass to expose the protected BuildTestCompilerCommand for unit testing }
+  TTestCompileCommandTestable = class(TTestCompileCommand)
+  public
+    function ExposedBuildCommand(const ATestSourcePath: string): string;
+  end;
+
+  { Verify that BuildTestCompilerCommand includes ResolvedModulePaths (-Fu flags)
+    so that test compilation can find units from module dependencies. }
+  TTestCompileCommandModulePaths = class(TTestCase)
+  private
+    FConfig: TProjectConfig;
+    FProfileIds: TStringList;
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    { ResolvedModulePaths must appear as -Fu flags in the test compile command }
+    procedure TestModuleDepPathsIncludedInTestCompileCommand;
+    { Multiple ResolvedModulePaths must all appear as -Fu flags }
+    procedure TestMultipleModuleDepPathsAllIncluded;
+  end;
+
   { Verify that test-compile and test skip gracefully when no test directory
     exists, matching Maven behaviour (no tests = SUCCESS, not FAILURE). }
   TTestCommandNoTestDir = class(TTestCase)
@@ -139,7 +161,81 @@ begin
   AssertEquals('test should return 0 (skip) when no test executable exists', 0, ExitCode);
 end;
 
+{ TTestCompileCommandTestable }
+
+function TTestCompileCommandTestable.ExposedBuildCommand(const ATestSourcePath: string): string;
+begin
+  Result := BuildTestCompilerCommand(ATestSourcePath);
+end;
+
+{ TTestCompileCommandModulePaths }
+
+procedure TTestCompileCommandModulePaths.SetUp;
+begin
+  FConfig := TProjectConfig.Create;
+  FConfig.Name := 'test-module';
+  FConfig.Version := '1.0.0';
+  FProfileIds := TStringList.Create;
+end;
+
+procedure TTestCompileCommandModulePaths.TearDown;
+begin
+  FProfileIds.Free;
+  FConfig.Free;
+end;
+
+procedure TTestCompileCommandModulePaths.TestModuleDepPathsIncludedInTestCompileCommand;
+var
+  Cmd: TTestCompileCommandTestable;
+  CmdLine: string;
+  ModPath: string;
+begin
+  ModPath := '/some/dep/target/units';
+  FConfig.BuildConfig.ResolvedModulePaths.Add(ModPath);
+
+  Cmd := TTestCompileCommandTestable.Create(FConfig, FProfileIds);
+  try
+    CmdLine := Cmd.ExposedBuildCommand('src/test/pascal/TestRunner.pas');
+  finally
+    Cmd.Free;
+  end;
+
+  AssertTrue(
+    'test compile command must include -Fu for ResolvedModulePaths: ' + ModPath,
+    Pos('-Fu' + ModPath, CmdLine) > 0
+  );
+end;
+
+procedure TTestCompileCommandModulePaths.TestMultipleModuleDepPathsAllIncluded;
+var
+  Cmd: TTestCompileCommandTestable;
+  CmdLine: string;
+  Path1, Path2: string;
+begin
+  Path1 := '/dep/one/target/units';
+  Path2 := '/dep/two/target/units';
+  FConfig.BuildConfig.ResolvedModulePaths.Add(Path1);
+  FConfig.BuildConfig.ResolvedModulePaths.Add(Path2);
+
+  Cmd := TTestCompileCommandTestable.Create(FConfig, FProfileIds);
+  try
+    CmdLine := Cmd.ExposedBuildCommand('src/test/pascal/TestRunner.pas');
+  finally
+    Cmd.Free;
+  end;
+
+  AssertTrue(
+    'test compile command must include -Fu for first module path: ' + Path1,
+    Pos('-Fu' + Path1, CmdLine) > 0
+  );
+  AssertTrue(
+    'test compile command must include -Fu for second module path: ' + Path2,
+    Pos('-Fu' + Path2, CmdLine) > 0
+  );
+end;
+
 initialization
+  RegisterTest(TTestCompileCommandModulePaths);
   RegisterTest(TTestCommandNoTestDir);
 
 end.
