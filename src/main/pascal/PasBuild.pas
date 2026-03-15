@@ -214,6 +214,9 @@ begin
             bgCompile:
               Command := TReactorCommand.Create(Config, Args.ProfileIds, Registry, 'compile', Args.SelectedModule);
 
+            bgTestCompile:
+              Command := TReactorCommand.Create(Config, Args.ProfileIds, Registry, 'test-compile', Args.SelectedModule);
+
             bgTest:
               Command := TReactorCommand.Create(Config, Args.ProfileIds, Registry, 'test', Args.SelectedModule);
 

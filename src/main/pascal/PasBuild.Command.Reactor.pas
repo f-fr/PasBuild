@@ -266,6 +266,9 @@ begin
           'compile':
             ModuleCommand := TCompileCommand.Create(ModuleConfig, FProfileIds);
 
+          'test-compile':
+            ModuleCommand := TTestCompileCommand.Create(ModuleConfig, FProfileIds);
+
           'test':
             ModuleCommand := TTestCommand.Create(ModuleConfig, FProfileIds);
 
