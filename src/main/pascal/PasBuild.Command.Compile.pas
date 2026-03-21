@@ -132,13 +132,13 @@ begin
         ActiveDefines
       );
 
-      // If manual paths where listed, add them too
+      // If manual paths were listed, add them too (resolved relative to base source path)
       for I := 0 to Config.BuildConfig.UnitPaths.Count - 1 do
       begin
         ConditionalPath := Config.BuildConfig.UnitPaths[I];
         if TUtils.IsConditionMet(ConditionalPath.Condition, ActiveDefines) then
         begin
-          s := TUtils.NormalizePath(ConditionalPath.Path);
+          s := TUtils.NormalizePath(BasePath + '/' + ConditionalPath.Path);
           UnitPaths.Add(s);
         end;
       end;
