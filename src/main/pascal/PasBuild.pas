@@ -34,6 +34,7 @@ uses
   PasBuild.Command.Init,
   PasBuild.Command.Reactor,
   PasBuild.Command.DependencyTree,
+  PasBuild.Command.Resolve,
   PasBuild.ModuleDiscovery,
   PasBuild.Repository,
   PasBuild.Dependencies,
@@ -233,6 +234,10 @@ begin
               Command := TDependencyTreeCommand.CreateMultiModule(
                 Config, Args.ProfileIds, Registry, Args.SelectedModule);
 
+            bgResolve:
+              Command := TResolveCommand.CreateMultiModule(
+                Config, Args.ProfileIds, Registry, Args.SelectedModule);
+
             else
               // For other goals, use single-module behavior
               Command := nil;
@@ -286,6 +291,9 @@ begin
 
           bgDependencyTree:
             Command := TDependencyTreeCommand.Create(Config, Args.ProfileIds);
+
+          bgResolve:
+            Command := TResolveCommand.Create(Config, Args.ProfileIds);
 
           bgInit:
             Command := TInitCommand.Create(Config, Args.ProfileIds);

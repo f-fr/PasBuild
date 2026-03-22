@@ -23,7 +23,7 @@ const
 
 type
   { Valid build goals }
-  TBuildGoal = (bgUnknown, bgClean, bgProcessResources, bgCompile, bgProcessTestResources, bgTestCompile, bgTest, bgPackage, bgSourcePackage, bgInstall, bgDependencyTree, bgInit, bgHelp, bgVersion, bgLicense);
+  TBuildGoal = (bgUnknown, bgClean, bgProcessResources, bgCompile, bgProcessTestResources, bgTestCompile, bgTest, bgPackage, bgSourcePackage, bgInstall, bgDependencyTree, bgResolve, bgInit, bgHelp, bgVersion, bgLicense);
 
   { Parsed command-line arguments }
   TCommandLineArgs = record
@@ -84,6 +84,8 @@ begin
     Result := bgInstall
   else if GoalLower = 'dependency-tree' then
     Result := bgDependencyTree
+  else if GoalLower = 'resolve' then
+    Result := bgResolve
   else if GoalLower = 'init' then
     Result := bgInit
   else if (GoalLower = '--help') or (GoalLower = '-h') then
@@ -109,6 +111,7 @@ begin
     bgSourcePackage: Result := 'source-package';
     bgInstall: Result := 'install';
     bgDependencyTree: Result := 'dependency-tree';
+    bgResolve: Result := 'resolve';
     bgInit: Result := 'init';
     bgHelp: Result := '--help';
     bgVersion: Result := '--version';
@@ -268,6 +271,7 @@ begin
   WriteLn('  source-package          Create source archive with src/, docs, and configured files');
   WriteLn('  install                 Install compiled units to local repository (~/.pasbuild/repository/)');
   WriteLn('  dependency-tree         Show project dependency tree (no compilation)');
+  WriteLn('  resolve                 Output resolved build configuration as JSON (no compilation)');
   WriteLn('  init                    Create new project structure');
   WriteLn;
   WriteLn('Options:');
@@ -292,6 +296,8 @@ begin
   WriteLn('  pasbuild compile -m mymodule          # Build specific module (multi-module)');
   WriteLn('  pasbuild dependency-tree              # Show full project dependency tree');
   WriteLn('  pasbuild dependency-tree -m mymodule  # Show dependencies for one module');
+  WriteLn('  pasbuild resolve -p unix,debug        # Output resolved build config as JSON');
+  WriteLn('  pasbuild resolve -m mymodule          # Resolve specific module only');
   WriteLn('  pasbuild compile --fpc /opt/fpc-3.3.1/bin/fpc  # Use custom FPC');
   WriteLn('  pasbuild test                         # Run tests');
   WriteLn('  pasbuild package                      # Create release archive');

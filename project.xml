@@ -13,11 +13,6 @@
     <outputDirectory>target</outputDirectory>
     <executableName>pasbuild</executableName>
 
-    <!-- Global defines (always active) -->
-    <defines>
-      <define>UseCThreads</define>
-    </defines>
-
     <!-- Resources configuration -->
     <resources>
       <directory>src/main/resources</directory>
