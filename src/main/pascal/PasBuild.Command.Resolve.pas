@@ -36,9 +36,11 @@ type
     procedure AddCompilerSection(AResult: TJSONObject; AConfig: TProjectConfig;
       AActiveDefines, AUnitPaths, AIncludePaths: TStringList);
     procedure AddResolveData(AResult: TJSONObject; AConfig: TProjectConfig;
-      const AProjectDir: string);
+      const AProjectDir: string; AModule: TModuleInfo = nil);
+    procedure AddModuleDependencies(ADepsArr: TJSONArray; AModule: TModuleInfo);
     function BuildSingleModuleJSON(AConfig: TProjectConfig;
-      const AProjectDir: string): TJSONObject;
+      const AProjectDir: string; AModule: TModuleInfo = nil): TJSONObject;
+    procedure ResolveAndChDir(AModule: TModuleInfo);
   protected
     function GetName: string; override;
     function BuildResolveJSON: TJSONObject; virtual;
@@ -155,7 +157,7 @@ begin
   end
   else
   begin
-    { Auto-scan mode }
+    { Auto-scan mode: add base source directory first, then scanned subdirs }
     Result.Free;
     Result := TUtils.ScanForUnitPathsFiltered(
       BasePath,
@@ -163,6 +165,7 @@ begin
       AActiveDefines
     );
     Result.Sorted := False;
+    Result.Insert(0, BasePath);
   end;
 
   { Add resolved module dependency paths }
@@ -278,8 +281,44 @@ begin
   AResult.Add('compiler', CompilerObj);
 end;
 
+procedure TResolveCommand.AddModuleDependencies(ADepsArr: TJSONArray;
+  AModule: TModuleInfo);
+var
+  I: Integer;
+  DepName: string;
+  DepModule: TModuleInfo;
+  DepObj: TJSONObject;
+begin
+  if (FRegistry = nil) or (AModule = nil) then
+    Exit;
+
+  { Use AModule.Dependencies which contains resolved module names
+    (not the raw relative paths from ModuleDependencies) }
+  for I := 0 to AModule.Dependencies.Count - 1 do
+  begin
+    DepName := AModule.Dependencies[I];
+    DepModule := FRegistry.FindModuleByName(DepName);
+    DepObj := TJSONObject.Create;
+    DepObj.Add('name', DepName);
+    if Assigned(DepModule) and Assigned(DepModule.Config) then
+    begin
+      DepObj.Add('version', DepModule.Config.Version);
+      DepObj.Add('type', 'local');
+      DepObj.Add('projectDir', DepModule.Path);
+      DepObj.Add('sourceDir', DepModule.Path + DirectorySeparator +
+        TUtils.NormalizePath(DepModule.Config.BuildConfig.SourceDirectory));
+      DepObj.Add('unitDir', DepModule.UnitsDirectory);
+    end
+    else
+    begin
+      DepObj.Add('type', 'local');
+    end;
+    ADepsArr.Add(DepObj);
+  end;
+end;
+
 procedure TResolveCommand.AddResolveData(AResult: TJSONObject;
-  AConfig: TProjectConfig; const AProjectDir: string);
+  AConfig: TProjectConfig; const AProjectDir: string; AModule: TModuleInfo);
 var
   ActiveDefines, UnitPathsList, IncludePathsList: TStringList;
   I: Integer;
@@ -323,8 +362,9 @@ begin
     ActiveDefines.Free;
   end;
 
-  { Dependencies }
+  { Dependencies — module deps first, then external }
   Arr := TJSONArray.Create;
+  AddModuleDependencies(Arr, AModule);
   for I := 0 to AConfig.Dependencies.Count - 1 do
   begin
     DepObj := TJSONObject.Create;
@@ -357,7 +397,7 @@ begin
 end;
 
 function TResolveCommand.BuildSingleModuleJSON(AConfig: TProjectConfig;
-  const AProjectDir: string): TJSONObject;
+  const AProjectDir: string; AModule: TModuleInfo): TJSONObject;
 var
   ProjectObj: TJSONObject;
   Arr: TJSONArray;
@@ -393,7 +433,17 @@ begin
   Result.Add('availableProfiles', Arr);
 
   { Add all resolve data (compiler, defines, unitPaths, etc.) }
-  AddResolveData(Result, AConfig, AProjectDir);
+  AddResolveData(Result, AConfig, AProjectDir, AModule);
+end;
+
+procedure TResolveCommand.ResolveAndChDir(AModule: TModuleInfo);
+begin
+  { Resolve artifact paths (populates ResolvedModulePaths) }
+  FRegistry.ResolveArtifacts(AModule);
+
+  { Change to module directory so auto-scan finds source files }
+  if DirectoryExists(AModule.Path) then
+    ChDir(AModule.Path);
 end;
 
 function TResolveCommand.BuildResolveJSON: TJSONObject;
@@ -406,7 +456,10 @@ var
   Module: TModuleInfo;
   FoundModule: TModuleInfo;
   BuildOrder: TList;
+  SavedDir: string;
 begin
+  SavedDir := GetCurrentDir;
+
   if (FRegistry <> nil) and (FSelectedModule = '') then
   begin
     { Multi-module aggregator output }
@@ -417,7 +470,7 @@ begin
     if Config.Version <> '' then
       ProjectObj.Add('version', Config.Version);
     ProjectObj.Add('projectType', 'pom');
-    ProjectObj.Add('projectDir', GetCurrentDir);
+    ProjectObj.Add('projectDir', SavedDir);
     Result.Add('project', ProjectObj);
 
     { Active profiles }
@@ -451,6 +504,7 @@ begin
         Module := TModuleInfo(BuildOrder[I]);
         if Assigned(Module.Config) then
         begin
+          ResolveAndChDir(Module);
           ModuleObj := TJSONObject.Create;
           ModuleObj.Add('name', Module.Config.Name);
           ModuleObj.Add('projectType',
@@ -460,13 +514,15 @@ begin
             ModuleObj.Add('mainSource', Module.Config.BuildConfig.MainSource);
           if Module.Config.BuildConfig.ExecutableName <> '' then
             ModuleObj.Add('executableName', Module.Config.BuildConfig.ExecutableName);
-          AddResolveData(ModuleObj, Module.Config, Module.Path);
+          AddResolveData(ModuleObj, Module.Config, Module.Path, Module);
           ModulesArr.Add(ModuleObj);
+          ChDir(SavedDir);
         end;
       end;
       Result.Add('modules', ModulesArr);
     finally
       BuildOrder.Free;
+      ChDir(SavedDir);
     end;
   end
   else if (FRegistry <> nil) and (FSelectedModule <> '') then
@@ -489,7 +545,12 @@ begin
       Exit;
     end;
 
-    Result := BuildSingleModuleJSON(FoundModule.Config, FoundModule.Path);
+    ResolveAndChDir(FoundModule);
+    try
+      Result := BuildSingleModuleJSON(FoundModule.Config, FoundModule.Path, FoundModule);
+    finally
+      ChDir(SavedDir);
+    end;
   end
   else
   begin
