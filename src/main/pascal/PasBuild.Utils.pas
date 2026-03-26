@@ -23,7 +23,9 @@ type
   TUtils = class
   private
     class var FFPCExecutable: string;
+    class var FQuietMode: Boolean;
   public
+    class property QuietMode: Boolean read FQuietMode write FQuietMode;
     { FPC executable configuration }
     class procedure SetFPCExecutable(const APath: string);
     class function GetFPCExecutable: string;
@@ -507,7 +509,8 @@ end;
 
 class procedure TUtils.LogInfo(const AMessage: string);
 begin
-  WriteLn('[INFO] ', AMessage);
+  if not FQuietMode then
+    WriteLn('[INFO] ', AMessage);
 end;
 
 class procedure TUtils.LogError(const AMessage: string);
@@ -517,12 +520,14 @@ end;
 
 class procedure TUtils.LogWarning(const AMessage: string);
 begin
-  WriteLn('[WARNING] ', AMessage);
+  if not FQuietMode then
+    WriteLn('[WARNING] ', AMessage);
 end;
 
 class procedure TUtils.LogSeparator;
 begin
-  WriteLn('[INFO] ', StringOfChar('-', 72));
+  if not FQuietMode then
+    WriteLn('[INFO] ', StringOfChar('-', 72));
 end;
 
 class function TUtils.DirectoryContainsIncludeFiles(const ADirectory: string): Boolean;

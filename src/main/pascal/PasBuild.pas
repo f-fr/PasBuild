@@ -51,10 +51,14 @@ var
   ProjectDir, OriginalDir: string;
 
 begin
-  WriteLn('[INFO] PasBuild ', PASBUILD_VERSION, ' — Born ', PASBUILD_BUILD_DATE, '. Raised by Graeme Geldenhuys.');
-
   // Parse command line arguments
   Args := TArgumentParser.ParseArguments;
+
+  // Suppress informational output for machine-consumable commands
+  TUtils.QuietMode := Args.Goal = bgResolve;
+
+  if not TUtils.QuietMode then
+    WriteLn('[INFO] PasBuild ', PASBUILD_VERSION, ' — Born ', PASBUILD_BUILD_DATE, '. Raised by Graeme Geldenhuys.');
 
   // Resolve custom FPC executable (CLI flag > env var > default 'fpc')
   if Args.FPCExecutable <> '' then
