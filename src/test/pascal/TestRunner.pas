@@ -25,7 +25,8 @@ uses
   PasBuild.Test.Command.DependencyTree,
   PasBuild.Test.Command.Resolve,
   PasBuild.Test.Command.Test,
-  PasBuild.Test.NestedAggregator;
+  PasBuild.Test.NestedAggregator,
+  PasBuild.Test.Plugin;
 
 var
   Application: TTestRunner;

@@ -1,0 +1,132 @@
+= PasBuild Plugin: hello-world
+:author: Graeme Geldenhuys
+:toc:
+
+== Overview
+
+This directory contains an example PasBuild plugin demonstrating the external plugin contract.
+Two implementations are provided — a shell script and a Pascal program — to show that plugins
+can be written in any language.
+
+== Plugin Contract
+
+A PasBuild plugin is any executable named `pasbuild-<name>` that follows these rules:
+
+=== Discovery
+
+PasBuild searches for plugins in this order:
+
+. `<project-dir>/plugins/` — project-local plugins
+. `~/.pasbuild/plugins/` — user-global plugins
+. `PATH` — system-wide (Git-style)
+
+Built-in goals always take precedence. If a plugin has the same name as a built-in goal,
+it will never be invoked.
+
+=== Phase Declaration
+
+When called with `--pasbuild-phase`, the plugin must print a single line to stdout and exit
+with code 0:
+
+* `after:<goal>` — run after the named built-in phase (e.g. `after:compile`)
+* `none` — no phase dependency; run standalone
+
+Valid phase names: `clean`, `process-resources`, `compile`, `process-test-resources`,
+`test-compile`, `test`, `package`, `source-package`, `install`.
+
+Example:
+
+[source,sh]
+----
+$ pasbuild-hello --pasbuild-phase
+after:compile
+----
+
+When a plugin declares `after:compile`, PasBuild will automatically run `process-resources`
+and `compile` before executing the plugin.
+
+=== Execution
+
+When invoked normally, the plugin receives:
+
+* First positional argument: absolute path to the project directory
+* Environment variables:
+** `PASBUILD_PROJECT_DIR` — absolute path to project root
+** `PASBUILD_PROJECT_FILE` — project file name (typically `project.xml`)
+** `PASBUILD_PROFILES` — comma-separated active profile IDs (may be empty)
+** `PASBUILD_VERBOSE` — `1` or `0`
+
+=== Context Retrieval
+
+For rich project context, plugins can run `pasbuild resolve` from within the project
+directory. This outputs the fully resolved build configuration as JSON to stdout, including
+compiler flags, unit paths, dependencies, and active profiles.
+
+To pass active profiles through to the resolve command, use the `PASBUILD_PROFILES`
+environment variable:
+
+[source,sh]
+----
+pasbuild resolve -p "$PASBUILD_PROFILES"
+----
+
+==== Working with Unit Paths
+
+The `resolve` output provides `unitPaths` and `includePaths` arrays — the directories
+where source files live — but intentionally does not list individual unit files. This is
+by design: PasBuild has already done the work of resolving conditional paths and profile-based
+filtering, so the directories in the JSON reflect exactly what is active for the current
+build configuration.
+
+Plugins that need individual file lists (e.g. generating Lazarus `.lpk` packages or IDE
+project files) should scan the resolved directories themselves. This keeps the decision about
+which files to include — `.pas` only, `.inc` files, test units, etc. — with the plugin
+author, where it belongs.
+
+Example (shell):
+
+[source,sh]
+----
+# Get unit paths from resolve output, then find all .pas files
+pasbuild resolve -p "$PASBUILD_PROFILES" | jq -r '.unitPaths[]' | while read dir; do
+  find "$dir" -name '*.pas' -type f
+done
+----
+
+=== Exit Code
+
+* `0` — success
+* Non-zero — failure (PasBuild propagates the exit code)
+
+== Installation
+
+Copy the plugin executable to one of the discovery locations:
+
+[source,sh]
+----
+# User-global installation
+cp pasbuild-hello ~/.pasbuild/plugins/
+
+# Or add to PATH
+export PATH="$PATH:/path/to/this/directory"
+----
+
+== Testing
+
+[source,sh]
+----
+# Verify phase declaration
+./pasbuild-hello --pasbuild-phase
+
+# Run via PasBuild (after installing)
+cd /path/to/any/pasbuild/project
+pasbuild hello
+----
+
+== Building the Pascal Version
+
+[source,sh]
+----
+fpc pasbuild-hello.pas
+cp pasbuild-hello ~/.pasbuild/plugins/
+----

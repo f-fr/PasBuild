@@ -38,6 +38,7 @@ uses
   PasBuild.ModuleDiscovery,
   PasBuild.Repository,
   PasBuild.Dependencies,
+  PasBuild.Plugin,
   PasBuild.Utils;
 
 var
@@ -49,6 +50,8 @@ var
   Resolver: TDependencyResolver;
   AggregatorDir: string;
   ProjectDir, OriginalDir: string;
+  PluginPath: string;
+  PhaseInfo: TPluginPhaseInfo;
 
 begin
   // Parse command line arguments
@@ -244,8 +247,21 @@ begin
                 Config, Args.ProfileIds, Registry, Args.SelectedModule);
 
             else
-              // For other goals, use single-module behavior
-              Command := nil;
+            begin
+              // Not a built-in multi-module goal — try plugin resolution
+              PluginPath := TPluginDiscovery.DiscoverPlugin(Args.GoalString);
+              if PluginPath <> '' then
+              begin
+                PhaseInfo := TPluginDiscovery.QueryPluginPhase(PluginPath);
+                if not PhaseInfo.Valid then
+                  TUtils.LogWarning('Plugin ' + Args.GoalString + ' did not declare a valid phase, running without dependencies');
+                Command := TPluginCommand.Create(Config, Args.ProfileIds,
+                  PluginPath, Args.GoalString, PhaseInfo.AfterGoal);
+              end
+              else
+                // Fall through to single-module behavior
+                Command := nil;
+            end;
           end;
         except
         on E: EProjectConfigError do
@@ -305,9 +321,21 @@ begin
 
           else
           begin
-            TUtils.LogError('Unknown goal');
-            ExitCode := 1;
-            Exit;
+            // Not a built-in goal — try plugin resolution
+            PluginPath := TPluginDiscovery.DiscoverPlugin(Args.GoalString);
+            if PluginPath = '' then
+            begin
+              TUtils.LogError('Unknown goal: ' + Args.GoalString);
+              ExitCode := 1;
+              Exit;
+            end;
+
+            PhaseInfo := TPluginDiscovery.QueryPluginPhase(PluginPath);
+            if not PhaseInfo.Valid then
+              TUtils.LogWarning('Plugin ' + Args.GoalString + ' did not declare a valid phase, running without dependencies');
+
+            Command := TPluginCommand.Create(Config, Args.ProfileIds,
+              PluginPath, Args.GoalString, PhaseInfo.AfterGoal);
           end;
         end;
       end;

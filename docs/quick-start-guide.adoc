@@ -853,6 +853,38 @@ By default, PasBuild auto-scans all subdirectories. For explicit control, use ma
 
 **Note:** Manual mode still respects conditional filtering for listed paths.
 
+=== Plugins
+
+PasBuild supports an external plugin system that lets anyone extend it with custom goals
+without modifying the core codebase. A plugin is any executable named `pasbuild-<name>`
+placed on your `PATH` or in a plugin directory.
+
+For example, a community plugin could generate Lazarus `.lpk` package files, produce
+documentation, or deploy build artifacts — all triggered as `pasbuild <plugin-name>` just
+like a built-in goal.
+
+Plugins integrate with the build lifecycle by declaring which phase they run after (e.g.
+`after:compile`), and receive project context via environment variables and the `pasbuild
+resolve` command.
+
+**Quick example:**
+
+[source,sh]
+----
+# Install a plugin
+cp pasbuild-myplugin ~/.pasbuild/plugins/
+
+# Run it like any goal
+pasbuild myplugin -p release
+
+# List installed plugins
+pasbuild --help
+----
+
+For the full plugin contract, example implementations (shell script and Pascal), and
+documentation on writing your own plugins, see `extras/plugins/hello-world/README.adoc`
+in the PasBuild source tree.
+
 == Working with Resources
 
 === Resource Files
@@ -1789,6 +1821,7 @@ chmod +x target/myapp
 
 * Read link:design.adoc[Design Document] for architecture details
 * Check link:implementation-progress.adoc[Implementation Progress] for feature roadmap
+* Write a plugin — see `extras/plugins/hello-world/README.adoc` for the plugin contract
 * Join the community and contribute!
 
 == Getting Help

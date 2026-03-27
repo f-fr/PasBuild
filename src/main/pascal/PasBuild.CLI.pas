@@ -28,6 +28,7 @@ type
   { Parsed command-line arguments }
   TCommandLineArgs = record
     Goal: TBuildGoal;
+    GoalString: string;  // Raw goal string (for plugin resolution when Goal = bgUnknown)
     ProfileIds: TStringList;  // Changed from ProfileId to support multiple profiles
     ProjectFile: string;  // Custom project file path (default: project.xml)
     SelectedModule: string;  // Module name for multi-module builds (empty = all modules)
@@ -43,9 +44,9 @@ type
   { Command-line argument parser }
   TArgumentParser = class
   private
-    class function GoalFromString(const AGoalStr: string): TBuildGoal;
     class function GoalToString(AGoal: TBuildGoal): string;
   public
+    class function GoalFromString(const AGoalStr: string): TBuildGoal;
     class function ParseArguments: TCommandLineArgs;
     class procedure ShowHelp;
     class procedure ShowVersion;
@@ -55,7 +56,8 @@ type
 implementation
 
 uses
-  PasBuild.Utils;
+  PasBuild.Utils,
+  PasBuild.Plugin;
 
 const
   GoalNames: array[TBuildGoal] of string = (
@@ -100,6 +102,7 @@ var
 begin
   // Initialize result
   Result.Goal := bgUnknown;
+  Result.GoalString := '';
   Result.ProfileIds := TStringList.Create;
   Result.ProfileIds.Delimiter := ',';
   Result.ProfileIds.StrictDelimiter := True;
@@ -155,13 +158,9 @@ begin
   // First parameter is the goal
   Result.Goal := GoalFromString(ParamStr(1));
 
-  // Validate goal
+  // If not a built-in goal, store the raw string for plugin resolution
   if Result.Goal = bgUnknown then
-  begin
-    Result.ErrorMessage := 'Unknown goal: ' + ParamStr(1);
-    Result.ShowHelp := True;
-    Exit;
-  end;
+    Result.GoalString := ParamStr(1);
 
   // Parse remaining arguments
   I := 2;
@@ -235,6 +234,9 @@ begin
 end;
 
 class procedure TArgumentParser.ShowHelp;
+var
+  Plugins: TStringList;
+  I: Integer;
 begin
   WriteLn('Usage: pasbuild <goal> [options]');
   WriteLn;
@@ -251,6 +253,21 @@ begin
   WriteLn('  dependency-tree         Show project dependency tree (no compilation)');
   WriteLn('  resolve                 Output resolved build configuration as JSON (no compilation)');
   WriteLn('  init                    Create new project structure');
+
+  // List discovered plugins
+  Plugins := TPluginDiscovery.DiscoverAllPlugins;
+  try
+    if Plugins.Count > 0 then
+    begin
+      WriteLn;
+      WriteLn('Plugins (external):');
+      for I := 0 to Plugins.Count - 1 do
+        WriteLn('  ', Plugins[I]);
+    end;
+  finally
+    Plugins.Free;
+  end;
+
   WriteLn;
   WriteLn('Options:');
   WriteLn('  -p <profile[,profile...]>    Activate build profile(s)');

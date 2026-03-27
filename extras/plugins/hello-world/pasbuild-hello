@@ -1,0 +1,27 @@
+#!/bin/sh
+# pasbuild-hello — Example PasBuild plugin
+#
+# Demonstrates the external plugin contract.
+# Install by copying to ~/.pasbuild/plugins/ or adding to PATH.
+#
+# This plugin declares phase "after:compile", so PasBuild will
+# automatically run process-resources and compile before executing
+# this plugin.
+
+case "$1" in
+  --pasbuild-phase)
+    echo "after:compile"
+    exit 0
+    ;;
+esac
+
+echo "[hello] Hello from PasBuild plugin!"
+echo "[hello] Project directory: ${PASBUILD_PROJECT_DIR}"
+echo "[hello] Project file: ${PASBUILD_PROJECT_FILE}"
+echo "[hello] Active profiles: ${PASBUILD_PROFILES}"
+echo "[hello] Verbose: ${PASBUILD_VERBOSE}"
+echo ""
+echo "[hello] Tip: run 'pasbuild resolve' from the project directory"
+echo "[hello] to get the full resolved build configuration as JSON."
+
+exit 0
