@@ -1,7 +1,7 @@
 {
   This file is part of PasBuild.
 
-  Copyright (c) 2025 Graeme Geldenhuys <graemeg@gmail.com>
+  Copyright (c) 2025-2026 Graeme Geldenhuys <graemeg@gmail.com>
 
   SPDX-License-Identifier: BSD-3-Clause
 
@@ -23,7 +23,7 @@ const
 
 type
   { Valid build goals }
-  TBuildGoal = (bgUnknown, bgClean, bgProcessResources, bgCompile, bgProcessTestResources, bgTestCompile, bgTest, bgPackage, bgSourcePackage, bgInstall, bgDependencyTree, bgResolve, bgInit, bgHelp, bgVersion, bgLicense);
+  TBuildGoal = (bgUnknown, bgClean, bgProcessResources, bgCompile, bgProcessTestResources, bgTestCompile, bgTest, bgPackage, bgSourcePackage, bgInstall, bgDependencyTree, bgResolve, bgInit);
 
   { Parsed command-line arguments }
   TCommandLineArgs = record
@@ -57,68 +57,40 @@ implementation
 uses
   PasBuild.Utils;
 
+const
+  GoalNames: array[TBuildGoal] of string = (
+    'unknown',
+    'clean',
+    'process-resources',
+    'compile',
+    'process-test-resources',
+    'test-compile',
+    'test',
+    'package',
+    'source-package',
+    'install',
+    'dependency-tree',
+    'resolve',
+    'init'
+  );
+
 { TArgumentParser }
 
 class function TArgumentParser.GoalFromString(const AGoalStr: string): TBuildGoal;
 var
   GoalLower: string;
+  G: TBuildGoal;
 begin
   GoalLower := LowerCase(AGoalStr);
-
-  if GoalLower = 'clean' then
-    Result := bgClean
-  else if GoalLower = 'process-resources' then
-    Result := bgProcessResources
-  else if GoalLower = 'compile' then
-    Result := bgCompile
-  else if GoalLower = 'process-test-resources' then
-    Result := bgProcessTestResources
-  else if GoalLower = 'test-compile' then
-    Result := bgTestCompile
-  else if GoalLower = 'test' then
-    Result := bgTest
-  else if GoalLower = 'package' then
-    Result := bgPackage
-  else if GoalLower = 'source-package' then
-    Result := bgSourcePackage
-  else if GoalLower = 'install' then
-    Result := bgInstall
-  else if GoalLower = 'dependency-tree' then
-    Result := bgDependencyTree
-  else if GoalLower = 'resolve' then
-    Result := bgResolve
-  else if GoalLower = 'init' then
-    Result := bgInit
-  else if (GoalLower = '--help') or (GoalLower = '-h') then
-    Result := bgHelp
-  else if GoalLower = '--version' then
-    Result := bgVersion
-  else if GoalLower = '--license' then
-    Result := bgLicense
-  else
-    Result := bgUnknown;
+  for G := Low(TBuildGoal) to High(TBuildGoal) do
+    if GoalNames[G] = GoalLower then
+      Exit(G);
+  Result := bgUnknown;
 end;
 
 class function TArgumentParser.GoalToString(AGoal: TBuildGoal): string;
 begin
-  case AGoal of
-    bgClean: Result := 'clean';
-    bgProcessResources: Result := 'process-resources';
-    bgCompile: Result := 'compile';
-    bgProcessTestResources: Result := 'process-test-resources';
-    bgTestCompile: Result := 'test-compile';
-    bgTest: Result := 'test';
-    bgPackage: Result := 'package';
-    bgSourcePackage: Result := 'source-package';
-    bgInstall: Result := 'install';
-    bgDependencyTree: Result := 'dependency-tree';
-    bgResolve: Result := 'resolve';
-    bgInit: Result := 'init';
-    bgHelp: Result := '--help';
-    bgVersion: Result := '--version';
-    bgLicense: Result := '--license';
-    else Result := 'unknown';
-  end;
+  Result := GoalNames[AGoal];
 end;
 
 class function TArgumentParser.ParseArguments: TCommandLineArgs;
@@ -162,27 +134,26 @@ begin
     Exit;
   end;
 
-  // First parameter is always the goal
-  Result.Goal := GoalFromString(ParamStr(1));
-
-  // Handle help and version flags
-  if Result.Goal = bgHelp then
+  // Handle flags that are not build goals
+  Arg := LowerCase(ParamStr(1));
+  if (Arg = '--help') or (Arg = '-h') then
   begin
     Result.ShowHelp := True;
     Exit;
   end;
-
-  if Result.Goal = bgVersion then
+  if Arg = '--version' then
   begin
     Result.ShowVersion := True;
     Exit;
   end;
-
-  if Result.Goal = bgLicense then
+  if Arg = '--license' then
   begin
     Result.ShowLicense := True;
     Exit;
   end;
+
+  // First parameter is the goal
+  Result.Goal := GoalFromString(ParamStr(1));
 
   // Validate goal
   if Result.Goal = bgUnknown then
@@ -300,7 +271,7 @@ begin
   WriteLn('  pasbuild compile -p base,debug        # Build with base + debug profiles');
   WriteLn('  pasbuild compile -v                   # Build with verbose FPC output');
   WriteLn('  pasbuild compile -f custom.xml        # Use alternate project file');
-  WriteLn('  pasbuild compile -f ../../../project.xml  # Build from a subdirectory');
+  WriteLn('  pasbuild compile -f ../../project.xml  # Build from a subdirectory');
   WriteLn('  pasbuild compile -m mymodule          # Build specific module (multi-module)');
   WriteLn('  pasbuild compile --all                # Build all modules (including inactive)');
   WriteLn('  pasbuild dependency-tree              # Show full project dependency tree');
@@ -332,7 +303,7 @@ class procedure TArgumentParser.ShowLicense;
 begin
   WriteLn('BSD 3-Clause License');
   WriteLn;
-  WriteLn('Copyright (c) 2025 - Graeme Geldenhuys <graemeg@gmail.com>');
+  WriteLn('Copyright (c) 2025-2026 by Graeme Geldenhuys <graemeg@gmail.com>');
   WriteLn;
   WriteLn('Redistribution and use in source and binary forms, with or without');
   WriteLn('modification, are permitted provided that the following conditions are met:');
