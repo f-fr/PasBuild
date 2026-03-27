@@ -31,10 +31,12 @@ type
       const ARootDir: string;
       const AInheritedVersion: string;
       ARegistry: TModuleRegistry;
-      AVisitedAggregators: TStringList
+      AVisitedAggregators: TStringList;
+      AForceAll: Boolean
     );
   public
-    class function DiscoverModules(const AAggregatorPath: string): TModuleRegistry;
+    class function DiscoverModules(const AAggregatorPath: string;
+    AForceAll: Boolean = False): TModuleRegistry;
   end;
 
 implementation
@@ -73,7 +75,8 @@ class procedure TModuleDiscoverer.DiscoverModulesRecursive(
   const ARootDir: string;
   const AInheritedVersion: string;
   ARegistry: TModuleRegistry;
-  AVisitedAggregators: TStringList
+  AVisitedAggregators: TStringList;
+  AForceAll: Boolean
 );
 var
   I: Integer;
@@ -86,6 +89,12 @@ begin
   for I := 0 to AAggregatorConfig.Modules.Count - 1 do
   begin
     ModulePath := AAggregatorConfig.Modules[I];
+
+    // Skip inactive modules unless --all was requested
+    if (not AForceAll) and
+       (AAggregatorConfig.InactiveModules.IndexOf(ModulePath) >= 0) then
+      Continue;
+
     AbsoluteModulePath := ResolvePath(AAggregatorDir, ModulePath);
 
     { Cycle detection: check early before loading the module }
@@ -137,13 +146,15 @@ begin
         ARootDir,
         ModuleConfig.Version,  { Pass resolved version down the chain }
         ARegistry,
-        AVisitedAggregators
+        AVisitedAggregators,
+        AForceAll
       );
     end;
   end;
 end;
 
-class function TModuleDiscoverer.DiscoverModules(const AAggregatorPath: string): TModuleRegistry;
+class function TModuleDiscoverer.DiscoverModules(const AAggregatorPath: string;
+  AForceAll: Boolean = False): TModuleRegistry;
 var
   AggregatorConfig: TProjectConfig;
   AggregatorDir: string;
@@ -180,7 +191,8 @@ begin
           AggregatorDir,
           AggregatorConfig.Version,
           Result,
-          VisitedAggregators
+          VisitedAggregators,
+          AForceAll
         );
       finally
         VisitedAggregators.Free;

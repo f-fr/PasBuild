@@ -33,7 +33,8 @@ type
     class procedure ParseTestSection(ATestNode: TDOMNode; AConfig: TProjectConfig);
     class procedure ParseResourcesSection(AResourcesNode: TDOMNode; AResourcesConfig: TResourcesConfig);
     class procedure ParseSourcePackageSection(ASourcePackageNode: TDOMNode; AConfig: TProjectConfig);
-    class procedure ParseModules(AModulesNode: TDOMNode; AModuleList: TStringList);
+    class procedure ParseModules(AModulesNode: TDOMNode; AModuleList: TStringList;
+      AInactiveModuleList: TStringList = nil);
     class procedure ParseDependencies(ADepsNode: TDOMNode; AConfig: TProjectConfig);
     class procedure ParseProfile(AProfileNode: TDOMNode; AProfile: TProfile);
     class procedure ParseProfiles(AProfilesNode: TDOMNode; AConfig: TProjectConfig);
@@ -288,10 +289,13 @@ begin
   end;
 end;
 
-class procedure TConfigLoader.ParseModules(AModulesNode: TDOMNode; AModuleList: TStringList);
+class procedure TConfigLoader.ParseModules(AModulesNode: TDOMNode; AModuleList: TStringList;
+  AInactiveModuleList: TStringList = nil);
 var
   ModuleNode: TDOMNode;
+  Element: TDOMElement;
   ModulePath: string;
+  ActiveByDefault: Boolean;
   I: Integer;
 begin
   if not Assigned(AModulesNode) then
@@ -307,7 +311,21 @@ begin
       begin
         ModulePath := Trim(string(ModuleNode.TextContent));
         if ModulePath <> '' then
+        begin
           AModuleList.Add(ModulePath);
+
+          // Read optional activeByDefault attribute (default: true)
+          ActiveByDefault := True;
+          if ModuleNode is TDOMElement then
+          begin
+            Element := TDOMElement(ModuleNode);
+            if Element.HasAttribute('activeByDefault') then
+              ActiveByDefault := LowerCase(Trim(string(Element.GetAttribute('activeByDefault')))) <> 'false';
+          end;
+
+          if (not ActiveByDefault) and Assigned(AInactiveModuleList) then
+            AInactiveModuleList.Add(ModulePath);
+        end;
       end;
     end;
   end;
@@ -467,7 +485,7 @@ begin
 
       // Parse <modules> section (optional, aggregators only)
       // Lists child modules for reactor builds
-      ParseModules(RootNode.FindNode('modules'), Result.Modules);
+      ParseModules(RootNode.FindNode('modules'), Result.Modules, Result.InactiveModules);
 
       // Parse <moduleDependencies> section (optional, libraries and applications only)
       // Lists module dependencies for linking

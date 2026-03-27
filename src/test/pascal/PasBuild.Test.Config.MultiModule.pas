@@ -66,6 +66,18 @@ type
     procedure TestParseModuleWithoutVersionStandaloneFails;
   end;
 
+  { Test parsing of activeByDefault attribute on <module> elements }
+  TTestParseModuleActiveByDefault = class(TTestCase)
+  private
+    function GetFixturePath(const AFileName: string): string;
+  published
+    procedure TestActiveByDefaultAbsentIsActive;
+    procedure TestActiveByDefaultTrueIsActive;
+    procedure TestActiveByDefaultFalseIsInactive;
+    procedure TestInactiveModuleStillInModulesList;
+    procedure TestMultipleMixedActiveByDefault;
+  end;
+
   { Test parsing of <sourceDirectory> element from XML }
   TTestParseSourceDirectory = class(TTestCase)
   private
@@ -439,11 +451,89 @@ begin
   end;
 end;
 
+{ TTestParseModuleActiveByDefault }
+
+function TTestParseModuleActiveByDefault.GetFixturePath(const AFileName: string): string;
+begin
+  Result := 'fixtures/multi-module/' + AFileName;
+end;
+
+procedure TTestParseModuleActiveByDefault.TestActiveByDefaultAbsentIsActive;
+var
+  Config: TProjectConfig;
+begin
+  { module1 has no activeByDefault attribute — must NOT appear in InactiveModules }
+  Config := TConfigLoader.LoadProjectXML(GetFixturePath('modules-active-by-default.xml'));
+  try
+    AssertEquals('InactiveModules should not contain module1',
+      -1, Config.InactiveModules.IndexOf('module1'));
+  finally
+    Config.Free;
+  end;
+end;
+
+procedure TTestParseModuleActiveByDefault.TestActiveByDefaultTrueIsActive;
+var
+  Config: TProjectConfig;
+begin
+  { module2 has activeByDefault="true" — must NOT appear in InactiveModules }
+  Config := TConfigLoader.LoadProjectXML(GetFixturePath('modules-active-by-default.xml'));
+  try
+    AssertEquals('InactiveModules should not contain module2',
+      -1, Config.InactiveModules.IndexOf('module2'));
+  finally
+    Config.Free;
+  end;
+end;
+
+procedure TTestParseModuleActiveByDefault.TestActiveByDefaultFalseIsInactive;
+var
+  Config: TProjectConfig;
+begin
+  { module3 has activeByDefault="false" — must appear in InactiveModules }
+  Config := TConfigLoader.LoadProjectXML(GetFixturePath('modules-active-by-default.xml'));
+  try
+    AssertTrue('InactiveModules should contain module3',
+      Config.InactiveModules.IndexOf('module3') >= 0);
+  finally
+    Config.Free;
+  end;
+end;
+
+procedure TTestParseModuleActiveByDefault.TestInactiveModuleStillInModulesList;
+var
+  Config: TProjectConfig;
+begin
+  { module3 is inactive but must still appear in the full Modules list }
+  Config := TConfigLoader.LoadProjectXML(GetFixturePath('modules-active-by-default.xml'));
+  try
+    AssertTrue('Modules should still contain module3',
+      Config.Modules.IndexOf('module3') >= 0);
+  finally
+    Config.Free;
+  end;
+end;
+
+procedure TTestParseModuleActiveByDefault.TestMultipleMixedActiveByDefault;
+var
+  Config: TProjectConfig;
+begin
+  { Only module3 is inactive; InactiveModules count must be exactly 1 }
+  Config := TConfigLoader.LoadProjectXML(GetFixturePath('modules-active-by-default.xml'));
+  try
+    AssertEquals('Modules list should have 3 entries', 3, Config.Modules.Count);
+    AssertEquals('InactiveModules list should have 1 entry', 1, Config.InactiveModules.Count);
+  finally
+    Config.Free;
+  end;
+end;
+
 initialization
   RegisterTest(TTestParsePackaging);
   RegisterTest(TTestParseModules);
   RegisterTest(TTestValidatePackagingRules);
   RegisterTest(TTestVersionLoading);
+  RegisterTest(TTestParseModuleActiveByDefault);
   RegisterTest(TTestParseSourceDirectory);
 
 end.

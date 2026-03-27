@@ -31,6 +31,7 @@ type
     ProfileIds: TStringList;  // Changed from ProfileId to support multiple profiles
     ProjectFile: string;  // Custom project file path (default: project.xml)
     SelectedModule: string;  // Module name for multi-module builds (empty = all modules)
+    ForceAllModules: Boolean;  // True when --all is passed; overrides activeByDefault=false
     FPCExecutable: string;  // Custom FPC compiler path (empty = default 'fpc')
     ShowHelp: Boolean;
     ShowVersion: Boolean;
@@ -132,6 +133,7 @@ begin
   Result.ProfileIds.StrictDelimiter := True;
   Result.ProjectFile := 'project.xml';  // Default
   Result.SelectedModule := '';  // Default: all modules
+  Result.ForceAllModules := False;  // Default: respect activeByDefault
   Result.FPCExecutable := '';  // Default: use 'fpc' from PATH
   Result.ShowHelp := False;
   Result.ShowVersion := False;
@@ -235,6 +237,11 @@ begin
       end;
       Result.SelectedModule := ParamStr(I);
     end
+    // Force all modules flag (overrides activeByDefault=false)
+    else if (Arg = '--all') then
+    begin
+      Result.ForceAllModules := True;
+    end
     // FPC executable flag
     else if (Arg = '--fpc') then
     begin
@@ -278,6 +285,7 @@ begin
   WriteLn('  -p <profile[,profile...]>    Activate build profile(s)');
   WriteLn('  --profile <id>               Activate build profile (same as -p)');
   WriteLn('  -m <module>, --module        Build specific module in multi-module project');
+  WriteLn('  --all                        Build all modules, including those with activeByDefault=false');
   WriteLn('  -f <file>, --file <file>     Use alternate project file (default: project.xml)');
   WriteLn('  --fpc <path>                 Use custom FPC executable (default: fpc)');
   WriteLn('  -v, --verbose                Show full compiler output');
@@ -294,6 +302,7 @@ begin
   WriteLn('  pasbuild compile -f custom.xml        # Use alternate project file');
   WriteLn('  pasbuild compile -f ../../../project.xml  # Build from a subdirectory');
   WriteLn('  pasbuild compile -m mymodule          # Build specific module (multi-module)');
+  WriteLn('  pasbuild compile --all                # Build all modules (including inactive)');
   WriteLn('  pasbuild dependency-tree              # Show full project dependency tree');
   WriteLn('  pasbuild dependency-tree -m mymodule  # Show dependencies for one module');
   WriteLn('  pasbuild resolve -p unix,debug        # Output resolved build config as JSON');

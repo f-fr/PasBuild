@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project>
+  <name>TestAggregatorActiveByDefault</name>
+  <version>1.0.0</version>
+
+  <build>
+    <packaging>pom</packaging>
+  </build>
+
+  <!-- module1: no attribute — defaults to activeByDefault=true -->
+  <!-- module2: explicitly true -->
+  <!-- module3: explicitly false — should appear in InactiveModules -->
+  <modules>
+    <module>module1</module>
+    <module activeByDefault="true">module2</module>
+    <module activeByDefault="false">module3</module>
+  </modules>
+</project>

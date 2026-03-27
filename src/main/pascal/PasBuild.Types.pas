@@ -174,6 +174,7 @@ type
     FSourcePackageConfig: TSourcePackageConfig;
     FProfiles: TProfileList;
     FModules: TStringList;                   // Child modules (for aggregator)
+    FInactiveModules: TStringList;           // Modules with activeByDefault="false"
     FModuleDependencies: TStringList;        // Module dependencies (for library/app)
     FDependencies: TDependencyList;          // External dependencies (from local repository)
   public
@@ -193,6 +194,7 @@ type
     property SourcePackageConfig: TSourcePackageConfig read FSourcePackageConfig;
     property Profiles: TProfileList read FProfiles;
     property Modules: TStringList read FModules;                           // Child modules list
+    property InactiveModules: TStringList read FInactiveModules;          // Modules with activeByDefault="false"
     property ModuleDependencies: TStringList read FModuleDependencies;    // Module dependencies
     property Dependencies: TDependencyList read FDependencies;            // External dependencies
   end;
@@ -383,6 +385,9 @@ begin
   FModules := TStringList.Create;
   FModules.Duplicates := dupIgnore;
 
+  FInactiveModules := TStringList.Create;
+  FInactiveModules.Duplicates := dupIgnore;
+
   FModuleDependencies := TStringList.Create;
   FModuleDependencies.Duplicates := dupIgnore;
 
@@ -403,6 +408,7 @@ begin
   FSourcePackageConfig.Free;
   FProfiles.Free;
   FModules.Free;
+  FInactiveModules.Free;
   FModuleDependencies.Free;
   FDependencies.Free;
   inherited Destroy;

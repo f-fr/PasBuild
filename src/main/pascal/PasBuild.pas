@@ -209,7 +209,8 @@ begin
             // Maybe just the directory was passed, try appending project.xml
             AggregatorDir := ExpandFileName(IncludeTrailingPathDelimiter(Args.ProjectFile) + 'project.xml');
           end;
-          Registry := TModuleDiscoverer.DiscoverModules(AggregatorDir);
+          Registry := TModuleDiscoverer.DiscoverModules(AggregatorDir,
+            Args.ForceAllModules or (Args.SelectedModule <> ''));
 
           // Create reactor command to build all modules
           case Args.Goal of
