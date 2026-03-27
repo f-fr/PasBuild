@@ -46,7 +46,6 @@ class function TBootstrapGenerator.ParseUnitName(const AFilePath: string): strin
 var
   F: TextFile;
   Line: string;
-  UnitPos: Integer;
   InBraceComment: Boolean;
   InParenComment: Boolean;
   CommentEndPos: Integer;
@@ -149,18 +148,14 @@ begin
         // Look for "unit <name>;"
         if AnsiStartsStr('unit ', LowerCase(Line)) then
         begin
-          UnitPos := Pos('unit ', LowerCase(Line));
-          if UnitPos > 0 then
-          begin
-            Delete(Line, 1, UnitPos + 4);  // Remove "unit "
-            Line := Trim(Line);
+          Delete(Line, 1, 5);  // Remove "unit "
+          Line := Trim(Line);
 
-            // Remove trailing semicolon
-            if AnsiEndsStr(';', Line) then
-              Delete(Line, Length(Line), 1);
+          // Remove trailing semicolon
+          if AnsiEndsStr(';', Line) then
+            Delete(Line, Length(Line), 1);
 
-            Result := Trim(Line);
-          end;
+          Result := Trim(Line);
         end;
       end;
     finally
