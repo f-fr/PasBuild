@@ -864,8 +864,8 @@ documentation, or deploy build artifacts — all triggered as `pasbuild <plugin-
 like a built-in goal.
 
 Plugins integrate with the build lifecycle by declaring which phase they run after (e.g.
-`after:compile`), and receive project context via environment variables and the `pasbuild
-resolve` command.
+`after:compile`), and receive project context via environment variables and the
+`pasbuild resolve` command (see <<_resolve>>).
 
 **Quick example:**
 
@@ -1366,6 +1366,75 @@ For single-module projects, only the declared `<dependencies>` (external) are sh
 * Quickly audit which external libraries a module relies on
 * Diagnose unexpected transitive dependency relationships
 
+=== resolve
+
+Outputs the fully resolved build configuration as JSON, without invoking the compiler.
+
+[source,shell]
+----
+pasbuild resolve                      # Single-module project
+pasbuild resolve -p debug             # With active profile
+pasbuild resolve -m fpgui-framework   # Specific module in a multi-module project
+----
+
+**What it outputs:**
+
+The JSON includes everything PasBuild has resolved for the current configuration:
+
+* `project` — name, version, type, and project directory
+* `activeProfiles` / `availableProfiles` — profile state
+* `compiler` — FPC executable path and the full command line that `compile` would invoke
+* `defines` — all active preprocessor defines (global + profile)
+* `unitPaths` — resolved source directories passed to FPC as `-Fu` flags
+* `includePaths` — resolved include directories passed to FPC as `-Fi` flags
+* `dependencies` — module and external dependencies with their resolved paths
+* `output` — output directory, unit directory, and executable path
+
+**Example output:**
+
+[source,json]
+----
+{
+  "project": {
+    "name": "my-lib",
+    "version": "1.0.0",
+    "projectType": "library",
+    "projectDir": "/home/user/projects/my-lib"
+  },
+  "activeProfiles": [],
+  "availableProfiles": ["debug", "release"],
+  "compiler": {
+    "executable": "fpc",
+    "commandLine": "fpc -Mobjfpc -O1 target/bootstrap_program.pas ..."
+  },
+  "defines": [],
+  "unitPaths": [
+    "/home/user/projects/my-lib/src/main/pascal"
+  ],
+  "includePaths": [
+    "/home/user/projects/my-lib/target"
+  ],
+  "dependencies": [],
+  "output": {
+    "directory": "target",
+    "unitDirectory": "target/units"
+  }
+}
+----
+
+**Note:** Individual source file paths are intentionally not listed. PasBuild resolves
+_which directories_ are active for the current configuration; scanning for specific files
+(`.pas`, `.inc`, etc.) is left to the caller, so the decision about which files to include
+stays with the tool or plugin consuming the data.
+
+**Use cases:**
+
+* IDE integration — supply exact compiler flags to an IDE's code intelligence engine
+* Plugin development — call `pasbuild resolve` from a plugin to obtain full project context
+  without hardcoding any paths
+* Debugging — inspect exactly which paths and defines PasBuild has resolved before running
+  a build
+
 === init
 
 Bootstraps a new project.
@@ -1632,6 +1701,8 @@ pasbuild test                     # Run tests (runs: compile → process-test-re
 pasbuild package                  # Create release archive
 pasbuild source-package           # Create source archive
 pasbuild install                  # Install to local repository (~/.pasbuild/repository/)
+pasbuild dependency-tree          # Display dependency graph (no compilation)
+pasbuild resolve                  # Output resolved build configuration as JSON
 pasbuild init                     # Bootstrap new project
 ----
 
