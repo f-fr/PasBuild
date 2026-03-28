@@ -28,6 +28,7 @@ type
       const AOutputPath: string;
       AActiveDefines: TStringList
     ): Boolean;
+    class function ParseUnitName(const AFilePath: string): string;
   private
     class function DiscoverUnits(
       const ABasePath: string;
@@ -35,7 +36,6 @@ type
       AManualMode: Boolean;
       AActiveDefines: TStringList
     ): TStringList;
-    class function ParseUnitName(const AFilePath: string): string;
   end;
 
 implementation
@@ -45,9 +45,10 @@ implementation
 class function TBootstrapGenerator.ParseUnitName(const AFilePath: string): string;
 var
   F: TextFile;
-  Line: string;
+  Line, LineLower: string;
   InBraceComment: Boolean;
   InParenComment: Boolean;
+  UnitKeyFound: Boolean;
   CommentEndPos: Integer;
 begin
   Result := '';
@@ -61,6 +62,7 @@ begin
     try
       InBraceComment := False;
       InParenComment := False;
+      UnitKeyFound := False;
 
       // Read first few lines looking for "unit <name>;"
       while not EOF(F) and (Result = '') do
@@ -145,17 +147,33 @@ begin
         if AnsiStartsStr('//', Line) then
           Continue;
 
-        // Look for "unit <name>;"
-        if AnsiStartsStr('unit ', LowerCase(Line)) then
+        // If we previously saw "unit" on its own line, this line is the name
+        if UnitKeyFound then
         begin
-          Delete(Line, 1, 5);  // Remove "unit "
-          Line := Trim(Line);
-
           // Remove trailing semicolon
           if AnsiEndsStr(';', Line) then
             Delete(Line, Length(Line), 1);
-
           Result := Trim(Line);
+        end
+        else
+        begin
+          LineLower := LowerCase(Line);
+
+          // Check for "unit" keyword alone on a line (name on next line)
+          if LineLower = 'unit' then
+            UnitKeyFound := True
+          // Check for "unit <name>;" on the same line
+          else if AnsiStartsStr('unit ', LineLower) then
+          begin
+            Delete(Line, 1, 5);  // Remove "unit "
+            Line := Trim(Line);
+
+            // Remove trailing semicolon
+            if AnsiEndsStr(';', Line) then
+              Delete(Line, Length(Line), 1);
+
+            Result := Trim(Line);
+          end;
         end;
       end;
     finally

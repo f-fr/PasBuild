@@ -26,7 +26,8 @@ uses
   PasBuild.Test.Command.Resolve,
   PasBuild.Test.Command.Test,
   PasBuild.Test.NestedAggregator,
-  PasBuild.Test.Plugin;
+  PasBuild.Test.Plugin,
+  PasBuild.Test.Bootstrap;
 
 var
   Application: TTestRunner;
