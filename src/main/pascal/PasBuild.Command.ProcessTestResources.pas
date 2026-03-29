@@ -173,10 +173,13 @@ begin
           // Process file
           if ProcessFile(SourcePath + SearchRec.Name, RelativePath) then
           begin
-            if FResourcesConfig.Filtering then
-              TUtils.LogInfo('  Filtered: ' + RelativePath)
-            else
-              TUtils.LogInfo('  Copied: ' + RelativePath);
+            if FVerbose then
+            begin
+              if FResourcesConfig.Filtering then
+                TUtils.LogInfo('  Filtered: ' + RelativePath)
+              else
+                TUtils.LogInfo('  Copied: ' + RelativePath);
+            end;
           end;
         end;
       until FindNext(SearchRec) <> 0;

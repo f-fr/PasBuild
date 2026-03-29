@@ -141,6 +141,7 @@ begin
   try
     for Dependency in Dependencies do
     begin
+      Dependency.Verbose := ACommand.Verbose;
       Result := Execute(Dependency);
       if Result <> 0 then
       begin
