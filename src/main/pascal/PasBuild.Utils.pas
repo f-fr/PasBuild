@@ -60,6 +60,9 @@ type
     { Path utilities }
     class function QuotePath(const APath: string): string;
 
+    { XML utilities }
+    class function XmlEscapeText(const AText: string): string;
+
     { Platform utilities }
     class function GetPlatformExecutableSuffix: string;
 
@@ -496,6 +499,13 @@ begin
     Result := '"' + APath + '"'
   else
     Result := APath;
+end;
+
+class function TUtils.XmlEscapeText(const AText: string): string;
+begin
+  Result := StringReplace(AText, '&', '&amp;', [rfReplaceAll]);
+  Result := StringReplace(Result, '<', '&lt;', [rfReplaceAll]);
+  Result := StringReplace(Result, '>', '&gt;', [rfReplaceAll]);
 end;
 
 class function TUtils.GetPlatformExecutableSuffix: string;

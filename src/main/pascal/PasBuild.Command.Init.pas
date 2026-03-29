@@ -105,10 +105,10 @@ begin
 
   Result := '<?xml version="1.0" encoding="UTF-8"?>' + LineEnding +
             '<project>' + LineEnding +
-            '  <name>' + AName + '</name>' + LineEnding +
-            '  <version>' + AVersion + '</version>' + LineEnding +
-            '  <author>' + AAuthor + '</author>' + LineEnding +
-            '  <license>' + ALicense + '</license>' + LineEnding +
+            '  <name>' + TUtils.XmlEscapeText(AName) + '</name>' + LineEnding +
+            '  <version>' + TUtils.XmlEscapeText(AVersion) + '</version>' + LineEnding +
+            '  <author>' + TUtils.XmlEscapeText(AAuthor) + '</author>' + LineEnding +
+            '  <license>' + TUtils.XmlEscapeText(ALicense) + '</license>' + LineEnding +
             '' + LineEnding +
             '  <build>' + LineEnding;
 
@@ -350,10 +350,10 @@ var
 begin
   Result := '<?xml version="1.0" encoding="UTF-8"?>' + LineEnding +
             '<project>' + LineEnding +
-            '  <name>' + AName + '</name>' + LineEnding +
-            '  <version>' + AVersion + '</version>' + LineEnding +
-            '  <author>' + AAuthor + '</author>' + LineEnding +
-            '  <license>' + ALicense + '</license>' + LineEnding +
+            '  <name>' + TUtils.XmlEscapeText(AName) + '</name>' + LineEnding +
+            '  <version>' + TUtils.XmlEscapeText(AVersion) + '</version>' + LineEnding +
+            '  <author>' + TUtils.XmlEscapeText(AAuthor) + '</author>' + LineEnding +
+            '  <license>' + TUtils.XmlEscapeText(ALicense) + '</license>' + LineEnding +
             '' + LineEnding +
             '  <build>' + LineEnding +
             '    <packaging>pom</packaging>' + LineEnding +
@@ -382,10 +382,10 @@ begin
 
   Result := '<?xml version="1.0" encoding="UTF-8"?>' + LineEnding +
             '<project>' + LineEnding +
-            '  <name>' + AName + '</name>' + LineEnding +
+            '  <name>' + TUtils.XmlEscapeText(AName) + '</name>' + LineEnding +
             '  <!-- version inherited from aggregator -->' + LineEnding +
-            '  <author>' + AAuthor + '</author>' + LineEnding +
-            '  <license>' + ALicense + '</license>' + LineEnding +
+            '  <author>' + TUtils.XmlEscapeText(AAuthor) + '</author>' + LineEnding +
+            '  <license>' + TUtils.XmlEscapeText(ALicense) + '</license>' + LineEnding +
             '' + LineEnding +
             '  <build>' + LineEnding;
 

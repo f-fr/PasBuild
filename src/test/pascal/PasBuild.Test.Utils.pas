@@ -50,6 +50,19 @@ type
     procedure TestFPCExecutableStoresPath;
   end;
 
+  { Test TUtils.XmlEscapeText }
+  TTestXmlEscapeText = class(TTestCase)
+  published
+    procedure TestPlainText;
+    procedure TestAmpersand;
+    procedure TestLessThan;
+    procedure TestGreaterThan;
+    procedure TestAllSpecialChars;
+    procedure TestEmptyString;
+    procedure TestAuthorWithEmail;
+    procedure TestDoubleAmpersand;
+  end;
+
   { Test FPC target detection utilities }
   TTestFPCTargetDetection = class(TTestCase)
   published
@@ -347,10 +360,62 @@ begin
     CPU + '-' + OS, Suffix);
 end;
 
+{ TTestXmlEscapeText }
+
+procedure TTestXmlEscapeText.TestPlainText;
+begin
+  AssertEquals('Plain text should be unchanged',
+    'Hello World', TUtils.XmlEscapeText('Hello World'));
+end;
+
+procedure TTestXmlEscapeText.TestAmpersand;
+begin
+  AssertEquals('Ampersand should be escaped',
+    'Smith &amp; Co', TUtils.XmlEscapeText('Smith & Co'));
+end;
+
+procedure TTestXmlEscapeText.TestLessThan;
+begin
+  AssertEquals('Less-than should be escaped',
+    'a &lt; b', TUtils.XmlEscapeText('a < b'));
+end;
+
+procedure TTestXmlEscapeText.TestGreaterThan;
+begin
+  AssertEquals('Greater-than should be escaped',
+    'a &gt; b', TUtils.XmlEscapeText('a > b'));
+end;
+
+procedure TTestXmlEscapeText.TestAllSpecialChars;
+begin
+  AssertEquals('All special chars should be escaped',
+    '&amp; &lt; &gt;', TUtils.XmlEscapeText('& < >'));
+end;
+
+procedure TTestXmlEscapeText.TestEmptyString;
+begin
+  AssertEquals('Empty string should remain empty',
+    '', TUtils.XmlEscapeText(''));
+end;
+
+procedure TTestXmlEscapeText.TestAuthorWithEmail;
+begin
+  AssertEquals('Author with email angle brackets should be escaped',
+    'John Doe &lt;john@example.org&gt;',
+    TUtils.XmlEscapeText('John Doe <john@example.org>'));
+end;
+
+procedure TTestXmlEscapeText.TestDoubleAmpersand;
+begin
+  AssertEquals('Multiple ampersands should each be escaped',
+    'A &amp;&amp; B', TUtils.XmlEscapeText('A && B'));
+end;
+
 initialization
   RegisterTest(TTestQuotePath);
   RegisterTest(TTestFPCExecutable);
   RegisterTest(TTestCLIFPCExecutable);
+  RegisterTest(TTestXmlEscapeText);
   RegisterTest(TTestFPCTargetDetection);
 
 end.
